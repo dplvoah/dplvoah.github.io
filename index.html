@@ -1,434 +1,445 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
+  
+  
+  <title>Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta property="og:type" content="website">
+<meta property="og:title" content="Hexo">
+<meta property="og:url" content="http://example.com/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:locale" content="en_US">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
 
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
 
-
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-<meta http-equiv="X-UA-Compatible" content="ie=edge">
-
-  <meta name="author" content="John Doe">
-
-
-
-
-
-<title>Hexo</title>
-
-
-
-<link rel="icon" href="/favicon.png">
-
-
-
-<link rel="stylesheet" href="/css/main.css">
-
-
-<link rel="stylesheet" href="/lib/nprogress/nprogress.css">
-
-
-
-<script src="/lib/jquery.min.js"></script>
-
-
-<script src="/lib/iconify-icon.min.js"></script>
-
-
-<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-<script>
-  tailwind.config = {
-    darkMode: "class",
-  };
-</script>
-
-
-<script src="/lib/nprogress/nprogress.js"></script>
-
-<script>
-  $(document).ready(() => {
-    NProgress.configure({
-      showSpinner: false,
-    });
-    NProgress.start();
-    $("#nprogress .bar").css({
-      background: "#de7441",
-    });
-    $("#nprogress .peg").css({
-      "box-shadow": "0 0 2px #de7441, 0 0 4px #de7441",
-    });
-    $("#nprogress .spinner-icon").css({
-      "border-top-color": "#de7441",
-      "border-left-color": "#de7441",
-    });
-    setTimeout(function () {
-      NProgress.done();
-      $(".fade").removeClass("out");
-    }, 800);
-  });
-</script>
-
-<script>
-  (function () {
-    const prefersDark =
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const setting = localStorage.getItem("hexo-color-scheme") || "auto";
-    if (setting === "dark" || (prefersDark && setting !== "light"))
-      document.documentElement.classList.toggle("dark", true);
-    let isDark = document.documentElement.classList.contains("dark");
-  })();
-
-  $(document).ready(function () {
-    // init icon
-    const prefersDark =
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = document.documentElement.classList.contains("dark");
-    $("#theme-icon").attr("icon", isDark ? "ri:moon-line" : "ri:sun-line");
-
-    function toggleGiscusTheme() {
-      const isDark = document.documentElement.classList.contains("dark");
-      const giscusFrame = document.querySelector("iframe.giscus-frame");
-      if (giscusFrame) {
-        giscusFrame.contentWindow.postMessage(
-          {
-            giscus: {
-              setConfig: {
-                theme: isDark ? "dark" : "light",
-              },
-            },
-          },
-          "https://giscus.app"
-        );
-      }
-    }
-
-    // toggle dark mode
-    function toggleDark() {
-      let isDark = document.documentElement.classList.contains("dark");
-      const setting = localStorage.getItem("hexo-color-scheme") || "auto";
-      isDark = !isDark;
-      document.documentElement.classList.toggle("dark", isDark);
-      $("#theme-icon").attr("icon", isDark ? "ri:moon-line" : "ri:sun-line");
-      if (prefersDark === isDark) {
-        localStorage.setItem("hexo-color-scheme", "auto");
-      } else {
-        localStorage.setItem("hexo-color-scheme", isDark ? "dark" : "light");
-      }
-      toggleGiscusTheme();
-    }
-
-    // listen dark mode change
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", (e) => {
-        const setting = localStorage.getItem("hexo-color-scheme") || "auto";
-        if (setting === "auto") {
-          document.documentElement.classList.toggle("dark", e.matches);
-          $("#theme-icon").attr(
-            "icon",
-            e.matches ? "ri:moon-line" : "ri:sun-line"
-          );
-          toggleGiscusTheme();
-        }
-      });
-
-    $("#toggle-dark").click((event) => {
-      const isAppearanceTransition = document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (!isAppearanceTransition) {
-        toggleDark()
-        return
-      }
-      const x = event.clientX
-      const y = event.clientY
-      const endRadius = Math.hypot(
-        Math.max(x, innerWidth - x),
-        Math.max(y, innerHeight - y),
-      )
-      const transition = document.startViewTransition(async () => {
-        toggleDark()
-      })
-
-      transition.ready
-        .then(() => {
-          const isDark = document.documentElement.classList.contains("dark")
-          const clipPath = [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${endRadius}px at ${x}px ${y}px)`,
-          ]
-          document.documentElement.animate(
-            {
-              clipPath: isDark
-                ? [...clipPath].reverse()
-                : clipPath,
-            },
-            {
-              duration: 400,
-              easing: 'ease-out',
-              pseudoElement: isDark
-                ? '::view-transition-old(root)'
-                : '::view-transition-new(root)',
-            },
-          )
-        })
-    });
-  });
-</script>
-
-
-
-
+  
+  
 <meta name="generator" content="Hexo 7.3.0"></head>
-<body class="font-sans bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 relative">
-  <header class="fixed w-full px-5 py-1 z-10 backdrop-blur-xl backdrop-saturate-150 border-b border-black/5">
-  <div class="max-auto">
-    <nav class="flex items-center text-base">
-      <a href="/" class="group">
-        <h2 class="font-medium tracking-tighterp text-l p-2">
-          <img class="w-5 mr-2 inline-block transition-transform group-hover:rotate-[30deg]" id="logo" src="/images/logo.svg" alt="Hexo" />
-          Hexo
-        </h2>
-      </a>
-      <div id="header-title" class="opacity-0 md:ml-2 md:mt-[0.1rem] text-xs font-medium whitespace-nowrap overflow-hidden overflow-ellipsis">
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
         
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        
+          <a class="nav-icon" href="/atom.xml" title="RSS Feed"><span class="fa fa-rss"></span></a>
+        
+        <a class="nav-icon nav-search-btn" title="Search"><span class="fa fa-search"></span></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
       </div>
-      <div class="flex-1"></div>
-      <div class="flex items-center gap-3">
-        
-          <a class="hidden sm:flex" href="/archives">Posts</a>
-        
-        
-          
-            <a class="w-5 h-5 hidden sm:flex" title="Github" target="_blank" rel="noopener" href="https://github.com/xbmlz">
-              <iconify-icon width="20" icon="ri:github-line"></iconify-icon>
-            </a>
-          
-        
-        <a class="w-5 h-5 hidden sm:flex" title="Github" href="rss2.xml">
-          <iconify-icon width="20" icon="ri:rss-line"></iconify-icon>
-        </a>
-        <a class="w-5 h-5" title="toggle theme" id="toggle-dark">
-          <iconify-icon width="20" icon="" id="theme-icon"></iconify-icon>
-        </a>
-      </div>
-      <div class="flex items-center justify-center gap-3 ml-3 sm:hidden">
-        <span class="w-5 h-5" aria-hidden="true" role="img" id="open-menu">
-          <iconify-icon width="20" icon="carbon:menu" ></iconify-icon>
-        </span>
-        <span class="w-5 h-5 hidden" aria-hidden="true" role="img" id="close-menu">
-          <iconify-icon  width="20" icon="carbon:close" ></iconify-icon>
-        </span>
-      </div>
-    </nav>
+    </div>
   </div>
 </header>
-<div id="menu-panel" class="h-0 overflow-hidden sm:hidden fixed left-0 right-0 top-12 bottom-0 z-10">
-  <div id="menu-content" class="relative z-20 bg-white/80 px-6 sm:px-8 py-2 backdrop-blur-xl -translate-y-full transition-transform duration-300">
-    <ul class="nav flex flex-col sm:flex-row text-sm font-medium">
-      
-        <li class="nav-portfolio sm:mx-2 border-b sm:border-0 border-black/5 last:border-0 hover:text-main">
-          <a href="/archives" class="flex h-12 sm:h-auto items-center">Posts</a>
-        </li>
-      
-    </ul>
-  </div>
-  <div class="mask bg-black/20 absolute inset-0"></div>
-</div>
 
-  <main class="pt-14">
-    <section class="px-6 max-w-prose mx-auto gap-12 grid grid-cols-1">
-  <div class="flex flex-col h-48 items-center justify-center">
-    <h1 class="site-title text-4xl leading-relaxed">
-      Hexo
+      <div class="outer">
+        <section id="main">
+  
+    <article id="post-ideology" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/08/29/ideology/" class="article-date">
+  <time class="dt-published" datetime="2024-08-29T14:55:53.000Z" itemprop="datePublished">2024-08-29</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Notices/">Notices</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2024/08/29/ideology/">Ideology</a>
     </h1>
-    <p class="text-gray-500 mt-2">
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
       
-    </p>
+        <h1 id="意识形态（Ideology）"><a href="#意识形态（Ideology）" class="headerlink" title="意识形态（Ideology）"></a>意识形态（Ideology）</h1><h2 id="无政府主义（安那其主义，Anarchism）"><a href="#无政府主义（安那其主义，Anarchism）" class="headerlink" title="无政府主义（安那其主义，Anarchism）"></a>无政府主义（安那其主义，Anarchism）</h2><p>无政府主义，又译作安那其主义，是一系列政治哲学思想。其目的在于废除政府当局与所有的政府管理机构。英语中的无政府主义“Anarchism”源于希腊语单词“αναρχία”，意思是没有统治者。所以被翻译成中文时，根据这一最基本的特征译成“无政府主义”，也有文献音译为“安那其主义”。无政府主义包含了众多哲学体系和社会运动实践。它的基本立场是反对包括政府在内的一切统治和权威，提倡个体之间的自助关系，关注个体的自由和平等；其政治诉求是消除政府以及社会上或经济上的任何独裁统治关系。对大多数无政府主义者而言，“无政府”一词并不代表混乱、虚无、或道德沦丧的状态，而是一种由自由的个体自愿结合，以建立互助、自治、反独裁主义的和谐社会。一如其他政治哲学思想，无政府主义包含不同的分支和流派。虽然他们都有着反对国家的共同特色，但却在其他议题上有着不同的立场，包括是否进行武装斗争、或以和平非暴力建立社会的问题上产生分歧，而在经济的观点上也有显著的差异，从主张财产彻底公有化的集体主义流派，至主张私人财产和自由市场的个人主义流派，政治光谱分布相当广泛。</p>
+<h2 id="共产主义（Communism）-社会主义（Socialism）"><a href="#共产主义（Communism）-社会主义（Socialism）" class="headerlink" title="共产主义（Communism）+ 社会主义（Socialism）"></a>共产主义（Communism）+ 社会主义（Socialism）</h2><p>共产主义概念包括共产主义思想、共产主义运动和共产主义制度三个层面。共产主义思想是无产阶级的思想体系，共产主义运动是无产阶级的革命实践活动，共产主义制度是人类最理想的社会制度，也是人类社会发展的最高形态。共产主义作为理想的社会制度，包括初级阶段的社会主义社会和高级阶段的共产主义社会。通常所说的共产主义，是指共产主义的高级阶段。在这个阶段，社会产品极大丰富，人们具有高度的思想觉悟，劳动成为生活的第一需要，工农、城乡、脑力劳动和体力劳动三大差别已经消灭，采取“各尽所能，按需分配”的分配原则。</p>
+<p>广义：共产主义初级阶段（或社会主义）+ 共产主义（高级阶段）<br>狭义：共产主义（高级阶段）</p>
+<h2 id="法西斯主义（Fascism）"><a href="#法西斯主义（Fascism）" class="headerlink" title="法西斯主义（Fascism）"></a>法西斯主义（Fascism）</h2><p>法西斯主义是一种结合了社团主义、工团主义、独裁主义、极端民族主义、中央集权制度形式的军国主义、反无政府主义、反自由放任的资本主义、和反共产主义政治哲学；《大英百科全书》对法西斯主义的定义：“个人的地位被压制于集体——例如：某个国家、民族、种族或社会阶级之下的社会组织。”</p>
+<h2 id="纳粹主义（Nazismus）民族社会主义（Nationalsocialismus"><a href="#纳粹主义（Nazismus）民族社会主义（Nationalsocialismus" class="headerlink" title="纳粹主义（Nazismus）民族社会主义（Nationalsocialismus)"></a>纳粹主义（Nazismus）民族社会主义（Nationalsocialismus)</h2><p>纳粹主义（Nazismus），全称民族社会主义（Nationalsozialismus），是第二次世界大战前阿道夫·希特勒等人提出的政治主张。由于德文相同，在中国经常被与“国家社会主义”混淆，实际上并非社会主义。纳粹主义意识形态的精神是“属于一个民族”，纳粹主义的基本理论包括：种族优秀论，“优等种族”至上；一切领域的“领袖”原则，“领袖”是国家整体意志的代表；反对英法资本主义体系以及共产主义思想体系，抵制共产主义理论。</p>
+<h2 id="民粹主义（Populism）"><a href="#民粹主义（Populism）" class="headerlink" title="民粹主义（Populism）"></a>民粹主义（Populism）</h2><p>民粹主义（Populism）可译为平民主义，是在19世纪的俄国兴起的一股社会思潮。民粹主义的基本理论包括：极端强调平民群众的价值和理想，把平民化和大众化作为所有政治运动和政治制度合法性的最终来源；依靠平民大众对社会进行激进改革，并把普通群众当作政治改革的唯一决定性力量；通过强调诸如平民的统一、全民公决、人民的创制权等民粹主义价值，对平民大众从整体上实施有效的控制和操纵。</p>
+<p>民粹主义萌芽于19世纪四五十年代，意指平民论者所拥护的政治与经济理念，该理念拥护平民掌控政治，反对精英或贵族主导政治。民粹主义主张直接民主，不仅仅是一种思潮，也可能形成运动，甚至具有长期的政治后果。</p>
+<h2 id="民族主义（Nationalism）"><a href="#民族主义（Nationalism）" class="headerlink" title="民族主义（Nationalism）"></a>民族主义（Nationalism）</h2><p>民族主义（nationalism），通常是指以维护本民族利益和尊严为出发点的思想与行为。即指以自我民族的利益为基础而进行的思想或运动。</p>
+<p>在近代以来，民族主义推动了民族解放与平等，是现代国际社会的源泉。</p>
+<p>美国学者汉斯·科恩认为：“民族主义首先而且最重要的是应该被看作是一种思想状态。”</p>
+<p>英国学者爱德华·霍列特·卡尔认为：“民族主义通常被用来表示个人、群体和一个民族内部成员的一种意识，或者是增进自我民族的力量、自由或财富的一种愿望”。</p>
+<h2 id="极端民族主义（Ultranationalism）"><a href="#极端民族主义（Ultranationalism）" class="headerlink" title="极端民族主义（Ultranationalism）"></a>极端民族主义（Ultranationalism）</h2><p>极端民族主义：只为本民族服务，认为本民族是本国，或者世界上最优秀的民族。歧视别的民族，用暴力手段残害屠杀其它民族的人民，剥夺其它民族人民的生存权，肆意掠夺资源。</p>
+<p>民族主义者的运动不一定声称自己的国家优于他国。他们或者就是主张，一个民族在容许自治的情况下，最好能够分离，即民族自决之原则。然而，这经常承受来自有不同身份认同与法统的“敌对阵营”作意识型态上的攻击。</p>
+<p>在巴以冲突中，双方皆主张对方并非真正的民族，故无权建国；沙文主义与极端爱国主义（Jingoism；主张对外实行战争政策）过分主张民族间的优越性；民族性的刻板印象极为常见，多具侮辱性。以上这些都是民族主义运动者抬头的现象，也值得注意，但不足以成为民族主义的一般性理论基础。</p>
+<p>极端类型的民族主义者几乎全然自认为本国优于他国，而最极端的民族主义甚至会寻求摧毁非我族类的文化，导致种族灭绝以及世界性的浩劫。</p>
+<h2 id="资本主义（Capitalism）"><a href="#资本主义（Capitalism）" class="headerlink" title="资本主义（Capitalism）"></a>资本主义（Capitalism）</h2><p>资本主义（capitalism）是生产资料私有制的社会制度。其内容是资产阶级通过购买劳动力进行剥削。其主要特征是：普遍化垄断、全球化垄断和经济金融化。</p>
+<p>德国席勒认为：工业革命完全改组了生产方式，也改变了人的生活方式，造成空前的社会动荡。这是欧洲社会的千年巨变。这种社会形态的基本特征是严密的社会分工，整个社会像一个精巧的钟表机械，无数众多的但是都无生命的部分，组成一种机械生活的整体。这种机械的社会必然也会造成人性的分裂。</p>
+<p>资本可以表现为用于购买劳动力和生产材料的货币和信贷。无论采取什么形式，它总是资产阶级所掌控的私人拥有的资本。资本家占有资本，支配着生产过程和金融决策。资本之间存在着竞争，但实质上则趋于垄断（集中）。资本日益集中的趋势非常明显，而且这种集中的速度和程度都在日益加快。</p>
+<h2 id="平均主义（Equalitarianism）"><a href="#平均主义（Equalitarianism）" class="headerlink" title="平均主义（Equalitarianism）"></a>平均主义（Equalitarianism）</h2><p>平均主义是指在小生产基础上产生的要求平均享有社会财富的思想。</p>
+<p>在封建社会里，从小生产者要求推翻地主阶级的剥削和统治、平均分配其土地财产来说，平均主义具有一定的合理性。在社会主义社会，平均主义是一种与按劳分配原则根本对立的错误思想，主要表现在对个人消费品的分配上，不论劳动成果的多少好坏，贡献大小，一律得到同样的收入和享受同样的待遇。</p>
+<p>平均主义思想否认社会主义客观存在的人与人之间的劳动差别和个人收入差别，结果必然是鼓励懒惰和落后，挫伤劳动者的积极性和创造性，使劳动者滞留在共同贫穷的水平上，导致生产力的破坏和社会风尚的倒退，与科学的社会主义格格不入，因而是一种落后、有害的思想。平均主义不是社会主义。</p>
+<p>其特点为：是人类面对不确定的一种本能反应，这种反应有利于人类对自身保护的加强，有利于保护社会竞争的弱者，有利于社会结构的均等化。受益群体为受害者、穷人、懒人。相对的群体即为受害者。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2024/08/29/ideology/" data-id="cm16gj23s0003doqt1rj030qh" data-title="Ideology" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+    </footer>
   </div>
   
+</article>
+
+
+
   
+    <article id="post-notices" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/08/29/notices/" class="article-date">
+  <time class="dt-published" datetime="2024-08-29T14:55:53.000Z" itemprop="datePublished">2024-08-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
     
     
-      <div class="relative pointer-events-none">
-        <span class="text-9xl opacity-10 absolute -left-11 -top-6 font-bold">2024</span>
-      </div>
-    
-    <a style="--stagger:0" href="/2024/08/29/ideology/" data-animate>
-      <header>
-        <h2 class="font-bold text-xl">
-          Ideology
-        </h2>
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2024/08/29/notices/">Like GRC(selling the spot)</a>
+    </h1>
+  
+
       </header>
-      <section class="text-gray-400 my-2 text-sm time">
-        <p class="line-clamp-4">
-          
-        </p>
-        <p class="line-clamp-4">
-          Aug 29
-          ·
-          8 min
-        </p>
-      </section>
-    </a>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p><a target="_blank" rel="noopener" href="https://wsyun.one/">某一个类似于 grc 的卖点网站</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2024/08/29/notices/" data-id="cm16gj23t0004doqtdvkc40f6" data-title="Like GRC(selling the spot)" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+    </footer>
+  </div>
   
+</article>
+
+
+
+  
+    <article id="post-othertests" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/08/29/othertests/" class="article-date">
+  <time class="dt-published" datetime="2024-08-29T12:47:53.000Z" itemprop="datePublished">2024-08-29</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ForOtherTest/">ForOtherTest</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
     
     
-    <a style="--stagger:1" href="/2024/08/29/notices/" data-animate>
-      <header>
-        <h2 class="font-bold text-xl">
-          Like GRC(selling the spot)
-        </h2>
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2024/08/29/othertests/">OtherTests</a>
+    </h1>
+  
+
       </header>
-      <section class="text-gray-400 my-2 text-sm time">
-        <p class="line-clamp-4">
-          
-        </p>
-        <p class="line-clamp-4">
-          Aug 29
-          ·
-          1 min
-        </p>
-      </section>
-    </a>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;bits/stdc++.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">signed</span> <span class="title">main</span><span class="params">(<span class="type">void</span>)</span> </span>&#123;</span><br><span class="line">    std::ios::<span class="built_in">sync_with_stdio</span>(<span class="literal">false</span>);</span><br><span class="line">    std::cin.<span class="built_in">tie</span>(<span class="literal">nullptr</span>);</span><br><span class="line">    std::cout.<span class="built_in">tie</span>(<span class="literal">nullptr</span>);</span><br><span class="line"></span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;I don&#x27;t wanna go to prison school!\n&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从我的 Diricret 生成函数的笔记截取一段测试一下：</p>
+<h2 id="定义"><a href="#定义" class="headerlink" title="定义"></a>定义</h2><p>一般地，对于一个函数 $f$，定义它的狄利克雷生成函数（简写为 DGF）为：</p>
+<p>$$\tilde{F}(x) &#x3D; \sum _ {i \ge 1} ^ \infty \dfrac{f_i}{i^x}.$$</p>
+<p>即：</p>
+<p>$$\tilde{F}(x) &#x3D; f_1 + \dfrac{f_2}{i^2} + \dfrac{f_3}{i^3} + \dfrac{f_4}{i^4} + \cdots.①$$</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2024/08/29/othertests/" data-id="cm16gj23g0000doqt3776fma3" data-title="OtherTests" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+    </footer>
+  </div>
   
+</article>
+
+
+
+  
+    <article id="post-test" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/08/29/test/" class="article-date">
+  <time class="dt-published" datetime="2024-08-29T12:45:00.000Z" itemprop="datePublished">2024-08-29</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ForTest/">ForTest</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
     
     
-    <a style="--stagger:2" href="/2024/08/29/othertests/" data-animate>
-      <header>
-        <h2 class="font-bold text-xl">
-          OtherTests
-        </h2>
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2024/08/29/test/">ForTest</a>
+    </h1>
+  
+
       </header>
-      <section class="text-gray-400 my-2 text-sm time">
-        <p class="line-clamp-4">
-          
-        </p>
-        <p class="line-clamp-4">
-          Aug 29
-          ·
-          1 min
-        </p>
-      </section>
-    </a>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h1 id="H1"><a href="#H1" class="headerlink" title="H1"></a>H1</h1><h2 id="H2"><a href="#H2" class="headerlink" title="H2"></a>H2</h2><h3 id="H3"><a href="#H3" class="headerlink" title="H3"></a>H3</h3><h4 id="H4"><a href="#H4" class="headerlink" title="H4"></a>H4</h4><h5 id="H5"><a href="#H5" class="headerlink" title="H5"></a>H5</h5><h6 id="H6"><a href="#H6" class="headerlink" title="H6"></a>H6</h6><p><strong>明天开学</strong> ，<del>现在我非常不开心</del> ，<em>所以我现在水了一篇博客</em></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2024/08/29/test/" data-id="cm16gj23u0005doqtdcxp0xku" data-title="ForTest" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ForTest/" rel="tag">ForTest</a></li></ul>
+
+    </footer>
+  </div>
   
+</article>
+
+
+
+  
+    <article id="post-hello-world" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2024/08/28/hello-world/" class="article-date">
+  <time class="dt-published" datetime="2024-08-28T14:19:19.903Z" itemprop="datePublished">2024-08-28</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
     
     
-    <a style="--stagger:3" href="/2024/08/29/test/" data-animate>
-      <header>
-        <h2 class="font-bold text-xl">
-          ForTest
-        </h2>
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2024/08/28/hello-world/">How to Use Hexo?</a>
+    </h1>
+  
+
       </header>
-      <section class="text-gray-400 my-2 text-sm time">
-        <p class="line-clamp-4">
-          
-        </p>
-        <p class="line-clamp-4">
-          Aug 29
-          ·
-          1 min
-        </p>
-      </section>
-    </a>
-  
     
-    
-    <a style="--stagger:4" href="/2024/08/28/hello-world/" data-animate>
-      <header>
-        <h2 class="font-bold text-xl">
-          How to Use Hexo?
-        </h2>
-      </header>
-      <section class="text-gray-400 my-2 text-sm time">
-        <p class="line-clamp-4">
-          
-        </p>
-        <p class="line-clamp-4">
-          Aug 28
-          ·
-          1 min
-        </p>
-      </section>
-    </a>
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+
+<p>Or</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo s</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+
+<p>Or</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo g</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2024/08/28/hello-world/" data-id="cm16gj23o0001doqt2n4n099t" data-title="How to Use Hexo?" class="article-share-link"><span class="fa fa-share">Share</span></a>
+      
+      
+      
+    </footer>
+  </div>
   
+</article>
+
+
+
+  
+
+
 </section>
-
-
-  </main>
-  <footer class="flex flex-col h-40 items-center justify-center text-gray-400 text-sm">
-  <!-- busuanzi -->
+        
+          <aside id="sidebar">
   
-<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-<!-- Busuanzi Analytics -->
-<div class="flex items-center gap-2">
-  <span>Visitors</span>
-  <span id="busuanzi_value_site_uv"></span>
-  <span>Page Views</span>
-  <span id="busuanzi_value_site_pv"></span>
-</div>
-<!-- End Busuanzi Analytics -->
-
-
-  <!-- copyright -->
-  <div class="flex items-center gap-2">
-    <a target="_blank" href="https://creativecommons.org/licenses/by-nc-sa/4.0/" style="color: inherit;">CC BY-NC-SA 4.0</a>
-    <span>© 2022</span>
-    <iconify-icon width="18" icon="emojione-monotone:maple-leaf" ></iconify-icon>
-    <a href="https://github.com/xbmlz" target="_blank" rel="noopener noreferrer">xbmlz</a>
-  </div>
-  <!-- powered by -->
-  <div class="flex items-center gap-2">
-    <span>Powered by</span>
-    <a href="https://hexo.io/" target="_blank" rel="noopener noreferrer">Hexo</a>
-    <span>&</span>
-    <a href="https://github.com/xbmlz/hexo-theme-maple" target="_blank" rel="noopener noreferrer">Maple</a>
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/ForOtherTest/">ForOtherTest</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/ForTest/">ForTest</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/Notices/">Notices</a></li></ul>
+    </div>
   </div>
 
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/ForTest/" rel="tag">ForTest</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/ForTest/" style="font-size: 10px;">ForTest</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/08/">August 2024</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2024/08/29/ideology/">Ideology</a>
+          </li>
+        
+          <li>
+            <a href="/2024/08/29/notices/">Like GRC(selling the spot)</a>
+          </li>
+        
+          <li>
+            <a href="/2024/08/29/othertests/">OtherTests</a>
+          </li>
+        
+          <li>
+            <a href="/2024/08/29/test/">ForTest</a>
+          </li>
+        
+          <li>
+            <a href="/2024/08/28/hello-world/">How to Use Hexo?</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2024 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
 </footer>
 
-  <div class="back-to-top box-border fixed right-6 z-1024 -bottom-20 rounded py-1 px-1 bg-slate-900 opacity-60 text-white cursor-pointer text-center dark:bg-slate-600">
-    <span class="flex justify-center items-center text-sm">
-      <iconify-icon width="18" icon="ion:arrow-up-c" id="go-top"></iconify-icon>
-      <span id="scrollpercent"><span>0</span> %</span>
-    </span>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.6.4.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
   </div>
-  
-<script src="/js/main.js"></script>
-
-
-  <script>
-    $(document).ready(function () {
-      const mapleCount = "10";
-      const speed = "0.5";
-      const mapleEl = document.getElementById("maple");
-      const maples = Array.from({ length: mapleCount }).map(() => {
-        const maple = document.createElement("div");
-        const scale = Math.random() * 0.5 + 0.5;
-        const offset = Math.random() * 2 - 1;
-        const x = Math.random() * mapleEl.clientWidth;
-        const y = -Math.random() * mapleEl.clientHeight;
-        const duration = 10 / speed;
-        const delay = -duration;
-        maple.className = "maple";
-        maple.style.width = `${24 * scale}px`;
-        maple.style.height = `${24 * scale}px`;
-        maple.style.left = `${x}px`;
-        maple.style.top = `${y}px`;
-        maple.style.setProperty("--maple-fall-offset", offset);
-        maple.style.setProperty("--maple-fall-height", `${Math.abs(y) + mapleEl.clientHeight}px`);
-        maple.style.animation = `fall ${duration}s linear infinite`;
-        maple.style.animationDelay = `${delay}s`;
-        mapleEl.appendChild(maple)
-        return maple
-      })
-    });
-  </script>
-  
-
-
-  <div class="fixed top-0 bottom-0 left-0 right-0 pointer-events-none print:hidden" id="maple"></div>
 </body>
-
 </html>
