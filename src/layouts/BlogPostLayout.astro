@@ -1,4 +1,6 @@
 ---
+import GiscusComments from "../components/GiscusComments.astro";
+
 const { frontmatter } = Astro.props;
 ---
 
@@ -53,6 +55,12 @@ const { frontmatter } = Astro.props;
       p {
         margin: 0 0 20px;
       }
+
+      .comments-wrap {
+        margin-top: 56px;
+        padding-top: 24px;
+        border-top: 1px solid #27272a;
+      }
     </style>
   </head>
   <body>
@@ -62,9 +70,14 @@ const { frontmatter } = Astro.props;
       <div class="meta">
         {frontmatter.pubDate && new Date(frontmatter.pubDate).toLocaleDateString("en-US")}
       </div>
+
       <article>
         <slot />
       </article>
+
+      <div class="comments-wrap">
+        <GiscusComments />
+      </div>
     </main>
   </body>
 </html>
