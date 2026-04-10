@@ -2,7 +2,7 @@
 title: "First Post"
 description: "The first post on my Astro blog."
 pubDate: "2026-04-08"
-discussion_id: "D_kwDOR8zCy84ALjuF"
+discussionId: "D_kwDOR8zCy84ALjuF"
 ---
 
 This is my first manually published post.
