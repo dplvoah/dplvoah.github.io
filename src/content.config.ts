@@ -8,6 +8,7 @@ const blog = defineCollection({
     title: z.string(),
     description: z.string().optional(),
     pubDate: z.coerce.date(),
+    author: z.enum(["dplvoah", "imlevv"]),
   }),
 });
 

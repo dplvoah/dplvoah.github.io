@@ -2,6 +2,7 @@
 title: "First Post"
 description: "The first post on my Astro blog."
 pubDate: "2026-04-08"
+author: "dplvoah"
 discussionId: "D_kwDOR8zCy84AljuF"
 ---
 
