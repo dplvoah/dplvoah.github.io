@@ -35,6 +35,7 @@ class BlogPost:
     date: str
     description: str
     draft: bool
+    discussion_id: str
     body: str
     metadata: dict[str, Any]
 
@@ -141,6 +142,23 @@ def extract_date(frontmatter: dict[str, Any], file_path: Path) -> str:
     return date_text
 
 
+def extract_discussion_id(frontmatter: dict[str, Any]) -> str:
+    """
+    Extract discussionId from frontmatter.
+
+    Args:
+        frontmatter: Parsed YAML frontmatter.
+
+    Returns:
+        discussionId string, or empty string if not provided.
+    """
+    raw_discussion_id = frontmatter.get("discussionId")
+    if raw_discussion_id is None:
+        return ""
+
+    return str(raw_discussion_id).strip()
+
+
 def normalize_post(file_path: Path) -> BlogPost:
     """
     Parse one markdown file into normalized BlogPost data.
@@ -161,6 +179,7 @@ def normalize_post(file_path: Path) -> BlogPost:
     date = extract_date(frontmatter, file_path)
     description = str(frontmatter.get("description", "")).strip()
     draft = bool(frontmatter.get("draft", False))
+    discussion_id = extract_discussion_id(frontmatter)
 
     if not title:
         raise MarkdownLoadError(f"Missing required field 'title': {file_path}")
@@ -178,6 +197,7 @@ def normalize_post(file_path: Path) -> BlogPost:
         date=date,
         description=description,
         draft=draft,
+        discussion_id=discussion_id,
         body=body,
         metadata=metadata,
     )
