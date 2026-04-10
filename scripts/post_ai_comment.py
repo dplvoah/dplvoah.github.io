@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 from pathlib import Path
 from typing import Any, Final
 
@@ -24,6 +26,7 @@ from generate_ai_comment import (
 from github_discussions import (
     GitHubDiscussionError,
     add_discussion_comment,
+    find_discussion_by_title,
     load_github_token,
 )
 from load_markdown import BlogPost, MarkdownLoadError, load_post_by_slug
@@ -31,6 +34,10 @@ from load_markdown import BlogPost, MarkdownLoadError, load_post_by_slug
 
 ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
 OUTPUT_DIR: Final[Path] = ROOT_DIR / "ai_output" / "comments"
+FRONTMATTER_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"^---\r?\n(.*?)\r?\n---(\r?\n?.*)$",
+    re.DOTALL,
+)
 
 
 class PostAICommentError(Exception):
@@ -52,10 +59,185 @@ def validate_post_for_comment(post: BlogPost) -> None:
             f"Post '{post.slug}' is marked as draft and cannot receive AI comments."
         )
 
-    if not post.discussion_id.strip():
+
+def resolve_repo_for_discussion_lookup(
+    *,
+    repo_owner: str,
+    repo_name: str,
+) -> tuple[str, str]:
+    """
+    Resolve repository owner/name for discussion lookup.
+
+    Priority:
+    1) CLI args (--repo-owner / --repo-name)
+    2) GITHUB_REPOSITORY env (owner/repo)
+
+    Args:
+        repo_owner: CLI repository owner value.
+        repo_name: CLI repository name value.
+
+    Returns:
+        Tuple of (owner, repo).
+
+    Raises:
+        PostAICommentError: If repo info is unavailable or invalid.
+    """
+    owner = repo_owner.strip()
+    name = repo_name.strip()
+    if owner and name:
+        return owner, name
+
+    if owner or name:
         raise PostAICommentError(
-            f"Post '{post.slug}' is missing discussionId in frontmatter."
+            "Both --repo-owner and --repo-name are required together."
         )
+
+    github_repository = os.getenv("GITHUB_REPOSITORY", "").strip()
+    if "/" not in github_repository:
+        raise PostAICommentError(
+            "Missing repository info. Set --repo-owner/--repo-name, "
+            "or provide GITHUB_REPOSITORY=owner/repo."
+        )
+
+    env_owner, env_repo = github_repository.split("/", 1)
+    env_owner = env_owner.strip()
+    env_repo = env_repo.strip()
+    if not env_owner or not env_repo:
+        raise PostAICommentError(
+            f"Invalid GITHUB_REPOSITORY value: {github_repository}"
+        )
+
+    return env_owner, env_repo
+
+
+def resolve_discussion_id(
+    *,
+    post: BlogPost,
+    github_token: str,
+    repo_owner: str,
+    repo_name: str,
+    discussion_search_limit: int,
+) -> str:
+    """
+    Resolve the GitHub Discussion ID for a post.
+
+    Args:
+        post: Parsed blog post.
+        github_token: GitHub token.
+        repo_owner: Repository owner.
+        repo_name: Repository name.
+        discussion_search_limit: Number of recent discussions to inspect.
+
+    Returns:
+        Resolved discussion ID.
+
+    Raises:
+        PostAICommentError: If discussion cannot be resolved safely.
+    """
+    configured_discussion_id = post.discussion_id.strip()
+    if configured_discussion_id:
+        return configured_discussion_id
+
+    owner, name = resolve_repo_for_discussion_lookup(
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+    )
+
+    if discussion_search_limit <= 0:
+        raise PostAICommentError("--discussion-search-limit must be greater than 0.")
+
+    try:
+        matches = find_discussion_by_title(
+            token=github_token,
+            owner=owner,
+            repo=name,
+            title=post.title,
+            limit=discussion_search_limit,
+        )
+    except GitHubDiscussionError as exc:
+        raise PostAICommentError(
+            f"Failed to look up discussion by title '{post.title}': {exc}"
+        ) from exc
+
+    if not matches:
+        raise PostAICommentError(
+            f"Post '{post.slug}' has no discussionId and no matching discussion "
+            f"found by title '{post.title}' in {owner}/{name}."
+        )
+
+    if len(matches) > 1:
+        candidates = ", ".join(
+            f"{item.get('id', '')}:{item.get('title', '')}" for item in matches[:5]
+        )
+        raise PostAICommentError(
+            f"Multiple discussions match title '{post.title}'. "
+            f"Set discussionId in frontmatter to disambiguate. Candidates: {candidates}"
+        )
+
+    resolved_discussion_id = str(matches[0].get("id", "")).strip()
+    if not resolved_discussion_id:
+        raise PostAICommentError(
+            f"Found discussion for title '{post.title}', but ID is empty."
+        )
+
+    return resolved_discussion_id
+
+
+def persist_discussion_id_to_frontmatter(
+    *,
+    post: BlogPost,
+    discussion_id: str,
+) -> Path | None:
+    """
+    Persist resolved discussionId back to markdown frontmatter when missing.
+
+    Args:
+        post: Parsed blog post.
+        discussion_id: Discussion ID already resolved for the post.
+
+    Returns:
+        Resolved markdown path if written, otherwise None.
+
+    Raises:
+        PostAICommentError: If markdown cannot be updated safely.
+    """
+    if post.discussion_id.strip():
+        return None
+
+    markdown_path = Path(post.source_path)
+    try:
+        raw_text = markdown_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise PostAICommentError(
+            f"Failed to read markdown for discussionId backfill: {markdown_path}"
+        ) from exc
+
+    match = FRONTMATTER_PATTERN.match(raw_text)
+    if not match:
+        raise PostAICommentError(
+            f"Cannot backfill discussionId because frontmatter format is invalid: {markdown_path}"
+        )
+
+    frontmatter_text, remainder = match.groups()
+    if re.search(r"(?m)^\s*discussionId\s*:", frontmatter_text):
+        return None
+
+    newline = "\r\n" if "\r\n" in raw_text else "\n"
+    updated_frontmatter = (
+        frontmatter_text.rstrip()
+        + newline
+        + f'discussionId: "{discussion_id}"'
+    )
+    updated_text = f"---{newline}{updated_frontmatter}{newline}---{remainder}"
+
+    try:
+        markdown_path.write_text(updated_text, encoding="utf-8")
+    except OSError as exc:
+        raise PostAICommentError(
+            f"Failed to backfill discussionId to markdown: {markdown_path}"
+        ) from exc
+
+    return markdown_path.resolve()
 
 
 def generate_comment_for_post(
@@ -103,6 +285,7 @@ def generate_comment_for_post(
 
 def publish_comment_to_discussion(
     *,
+    github_token: str,
     discussion_id: str,
     comment_text: str,
 ) -> dict[str, Any]:
@@ -120,7 +303,6 @@ def publish_comment_to_discussion(
         PostAICommentError: If publishing fails.
     """
     try:
-        github_token = load_github_token()
         return add_discussion_comment(
             token=github_token,
             discussion_id=discussion_id,
@@ -199,6 +381,30 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Write generation record to ai_output/comments/<slug>.json",
     )
+    parser.add_argument(
+        "--repo-owner",
+        default="",
+        type=str,
+        help=(
+            "Repository owner for discussion lookup when discussionId is missing. "
+            "Falls back to GITHUB_REPOSITORY."
+        ),
+    )
+    parser.add_argument(
+        "--repo-name",
+        default="",
+        type=str,
+        help=(
+            "Repository name for discussion lookup when discussionId is missing. "
+            "Falls back to GITHUB_REPOSITORY."
+        ),
+    )
+    parser.add_argument(
+        "--discussion-search-limit",
+        default=100,
+        type=int,
+        help="Number of recent discussions to inspect when resolving discussionId.",
+    )
     return parser.parse_args()
 
 
@@ -214,7 +420,24 @@ def main() -> int:
     try:
         post = load_post_by_slug(args.slug)
         validate_post_for_comment(post)
-        print(f"[post_ai_comment.py] slug={post.slug}, discussion_id={post.discussion_id}")
+        github_token = load_github_token()
+        discussion_id = resolve_discussion_id(
+            post=post,
+            github_token=github_token,
+            repo_owner=args.repo_owner,
+            repo_name=args.repo_name,
+            discussion_search_limit=args.discussion_search_limit,
+        )
+        print(f"[post_ai_comment.py] slug={post.slug}, discussion_id={discussion_id}")
+        saved_markdown_path = persist_discussion_id_to_frontmatter(
+            post=post,
+            discussion_id=discussion_id,
+        )
+        if saved_markdown_path is not None:
+            print(
+                "[post_ai_comment.py] Backfilled discussionId to: "
+                f"{saved_markdown_path}"
+            )
 
         comment_text, response_data = generate_comment_for_post(
             post=post,
@@ -224,7 +447,8 @@ def main() -> int:
         )
 
         published_comment = publish_comment_to_discussion(
-            discussion_id=post.discussion_id,
+            github_token=github_token,
+            discussion_id=discussion_id,
             comment_text=comment_text,
         )
 
@@ -237,7 +461,7 @@ def main() -> int:
                 comment_text=comment_text,
                 response_data=response_data,
             )
-            output_data["discussion_id"] = post.discussion_id
+            output_data["discussion_id"] = discussion_id
             output_data["published_comment"] = published_comment
 
             saved_path = write_generation_record(output_data, post.slug)
