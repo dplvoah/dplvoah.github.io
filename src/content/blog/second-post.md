@@ -1,7 +1,7 @@
 ---
-title: "First Post"
+title: "Second Post"
 description: "The second post on my blog. To test if it reply to me automatically."
-pubDate: "2026-04-08"
+pubDate: "2026-04-10"
 ---
 
 按照预期要求，你现在已经能自动回复我刚刚修改并推送的每一篇博文了。我很期待你的回复。诚然，这也相当于对你预期能力的测试。
