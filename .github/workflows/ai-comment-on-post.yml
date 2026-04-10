@@ -14,7 +14,11 @@ on:
 
 jobs:
   post-ai-comment:
+    if: github.event_name != 'push' || github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -54,8 +58,16 @@ jobs:
               changed_files=$(git diff --name-only "$BEFORE_SHA" "$HEAD_SHA" -- 'src/content/blog/*.md')
             fi
 
-            slugs=$(printf '%s\n' "$changed_files" \
+            changed_slugs=$(printf '%s\n' "$changed_files" \
               | sed -n 's#^src/content/blog/\(.*\)\.md$#\1#p' \
+              | sort -u \
+              | paste -sd ' ' -)
+
+            missing_discussion_slugs=$(python -c "from pathlib import Path; import re; p=re.compile(r'^---\\r?\\n(.*?)\\r?\\n---\\r?\\n?(.*)$', re.DOTALL); print(' '.join(path.stem for path in sorted(Path('src/content/blog').glob('*.md')) if (m:=p.match(path.read_text(encoding='utf-8'))) and not re.search(r'(?m)^\\s*discussionId\\s*:', m.group(1))))")
+
+            slugs=$(printf '%s\n%s\n' "$changed_slugs" "$missing_discussion_slugs" \
+              | tr ' ' '\n' \
+              | sed '/^$/d' \
               | sort -u \
               | paste -sd ' ' -)
           fi
@@ -100,3 +112,17 @@ jobs:
               --discussion-category-name "${GISCUS_CATEGORY}" \
               --write-file
           done
+
+      - name: Commit discussionId backfill
+        if: steps.resolve-slugs.outputs.has_slugs == 'true'
+        run: |
+          if git diff --quiet -- src/content/blog/*.md; then
+            echo "No discussionId backfill changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/content/blog/*.md
+          git commit -m "chore: backfill discussionId [skip ai-comment]"
+          git push
