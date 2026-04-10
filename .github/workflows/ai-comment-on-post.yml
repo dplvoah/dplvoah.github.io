@@ -88,11 +88,15 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           AI_GITHUB_TOKEN: ${{ secrets.AI_GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GISCUS_CATEGORY: "Comments"
+          GISCUS_CATEGORY_ID: "DIC_kwDOR8zCy84C6Xkq"
         run: |
           for slug in ${{ steps.resolve-slugs.outputs.resolved_slugs }}; do
             python scripts/post_ai_comment.py \
               --slug "${slug}" \
               --repo-owner "${{ github.repository_owner }}" \
               --repo-name "${{ github.event.repository.name }}" \
+              --discussion-category-id "${GISCUS_CATEGORY_ID}" \
+              --discussion-category-name "${GISCUS_CATEGORY}" \
               --write-file
           done

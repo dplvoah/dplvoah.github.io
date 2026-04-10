@@ -308,6 +308,235 @@ def add_discussion_comment(
     return comment
 
 
+def get_repository_discussion_context(
+    *,
+    token: str,
+    owner: str,
+    repo: str,
+) -> dict[str, Any]:
+    """
+    Fetch repository node ID and available discussion categories.
+
+    Args:
+        token: GitHub authentication token.
+        owner: Repository owner.
+        repo: Repository name.
+
+    Returns:
+        Dictionary with repository id, url, and discussion categories.
+
+    Raises:
+        GitHubDiscussionError: If repository fields are missing.
+    """
+    query = """
+    query RepositoryDiscussionContext($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        id
+        url
+        discussionCategories(first: 50) {
+          nodes {
+            id
+            name
+            emoji
+          }
+        }
+      }
+    }
+    """
+    variables = {
+        "owner": owner,
+        "repo": repo,
+    }
+
+    data = execute_github_graphql_query(
+        token=token,
+        query=query,
+        variables=variables,
+    )
+
+    try:
+        repository = data["data"]["repository"]
+        repository_id = str(repository["id"]).strip()
+        repository_url = str(repository.get("url", "")).strip()
+        categories = repository["discussionCategories"]["nodes"] or []
+    except (KeyError, TypeError) as exc:
+        raise GitHubDiscussionError(
+            "GitHub response missing repository discussion context."
+        ) from exc
+
+    if not repository_id:
+        raise GitHubDiscussionError(f"Repository not found or inaccessible: {owner}/{repo}")
+
+    normalized_categories = [
+        {
+            "id": str(item.get("id", "")).strip(),
+            "name": str(item.get("name", "")).strip(),
+            "emoji": str(item.get("emoji", "")).strip(),
+        }
+        for item in categories
+        if item
+    ]
+
+    return {
+        "repository_id": repository_id,
+        "repository_url": repository_url,
+        "categories": normalized_categories,
+    }
+
+
+def resolve_discussion_category_id(
+    *,
+    categories: list[dict[str, Any]],
+    category_id: str,
+    category_name: str,
+) -> str:
+    """
+    Resolve usable category ID from available categories.
+
+    Args:
+        categories: Available repository discussion categories.
+        category_id: Preferred category node ID.
+        category_name: Preferred category name.
+
+    Returns:
+        Resolved category ID.
+
+    Raises:
+        GitHubDiscussionError: If category cannot be resolved.
+    """
+    normalized_category_id = category_id.strip()
+    normalized_category_name = category_name.strip()
+
+    if not categories:
+        raise GitHubDiscussionError(
+            "Repository has no discussion categories available."
+        )
+
+    if normalized_category_id:
+        for item in categories:
+            if item.get("id", "").strip() == normalized_category_id:
+                return normalized_category_id
+
+        available_ids = ", ".join(
+            item.get("id", "") for item in categories if item.get("id", "")
+        )
+        raise GitHubDiscussionError(
+            f"Configured category ID not found: {normalized_category_id}. "
+            f"Available IDs: {available_ids}"
+        )
+
+    if normalized_category_name:
+        target = normalized_category_name.lower()
+        for item in categories:
+            if item.get("name", "").strip().lower() == target:
+                return item.get("id", "").strip()
+
+    available_names = ", ".join(
+        item.get("name", "") for item in categories if item.get("name", "")
+    )
+    raise GitHubDiscussionError(
+        f"Discussion category not found by name '{normalized_category_name}'. "
+        f"Available categories: {available_names}"
+    )
+
+
+def create_discussion(
+    *,
+    token: str,
+    owner: str,
+    repo: str,
+    title: str,
+    body: str,
+    category_id: str = "",
+    category_name: str = "Comments",
+) -> dict[str, Any]:
+    """
+    Create a GitHub Discussion in the target repository.
+
+    Args:
+        token: GitHub authentication token.
+        owner: Repository owner.
+        repo: Repository name.
+        title: Discussion title.
+        body: Discussion body markdown.
+        category_id: Optional category node ID.
+        category_name: Category name fallback if category_id is absent.
+
+    Returns:
+        Created discussion payload.
+
+    Raises:
+        GitHubDiscussionError: If validation or API request fails.
+    """
+    normalized_title = title.strip()
+    normalized_body = body.strip()
+    if not normalized_title:
+        raise GitHubDiscussionError("Discussion title cannot be empty.")
+    if not normalized_body:
+        raise GitHubDiscussionError("Discussion body cannot be empty.")
+
+    context = get_repository_discussion_context(
+        token=token,
+        owner=owner,
+        repo=repo,
+    )
+    resolved_category_id = resolve_discussion_category_id(
+        categories=context["categories"],
+        category_id=category_id,
+        category_name=category_name,
+    )
+
+    mutation = """
+    mutation CreateDiscussion(
+      $repositoryId: ID!,
+      $categoryId: ID!,
+      $title: String!,
+      $body: String!
+    ) {
+      createDiscussion(
+        input: {
+          repositoryId: $repositoryId,
+          categoryId: $categoryId,
+          title: $title,
+          body: $body
+        }
+      ) {
+        discussion {
+          id
+          number
+          title
+          url
+          createdAt
+          category {
+            id
+            name
+          }
+        }
+      }
+    }
+    """
+    variables = {
+        "repositoryId": context["repository_id"],
+        "categoryId": resolved_category_id,
+        "title": normalized_title,
+        "body": normalized_body,
+    }
+
+    data = execute_github_graphql_query(
+        token=token,
+        query=mutation,
+        variables=variables,
+    )
+    try:
+        discussion = data["data"]["createDiscussion"]["discussion"]
+    except (KeyError, TypeError) as exc:
+        raise GitHubDiscussionError(
+            "GitHub response missing createDiscussion.discussion"
+        ) from exc
+
+    return discussion
+
+
 def parse_args() -> argparse.Namespace:
     """
     Parse CLI arguments.

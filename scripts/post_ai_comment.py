@@ -26,6 +26,7 @@ from generate_ai_comment import (
 from github_discussions import (
     GitHubDiscussionError,
     add_discussion_comment,
+    create_discussion,
     find_discussion_by_title,
     load_github_token,
 )
@@ -117,6 +118,8 @@ def resolve_discussion_id(
     repo_owner: str,
     repo_name: str,
     discussion_search_limit: int,
+    discussion_category_id: str,
+    discussion_category_name: str,
 ) -> str:
     """
     Resolve the GitHub Discussion ID for a post.
@@ -127,6 +130,8 @@ def resolve_discussion_id(
         repo_owner: Repository owner.
         repo_name: Repository name.
         discussion_search_limit: Number of recent discussions to inspect.
+        discussion_category_id: Preferred discussion category ID for auto-create.
+        discussion_category_name: Preferred discussion category name for auto-create.
 
     Returns:
         Resolved discussion ID.
@@ -160,10 +165,38 @@ def resolve_discussion_id(
         ) from exc
 
     if not matches:
-        raise PostAICommentError(
-            f"Post '{post.slug}' has no discussionId and no matching discussion "
-            f"found by title '{post.title}' in {owner}/{name}."
+        discussion_body = (
+            f"Auto-created discussion for blog post **{post.title}**.\n\n"
+            f"- Slug: `{post.slug}`\n"
+            f"- Date: `{post.date}`\n\n"
+            f"{post.description}"
         )
+        try:
+            created_discussion = create_discussion(
+                token=github_token,
+                owner=owner,
+                repo=name,
+                title=post.title,
+                body=discussion_body,
+                category_id=discussion_category_id,
+                category_name=discussion_category_name,
+            )
+        except GitHubDiscussionError as exc:
+            raise PostAICommentError(
+                f"Post '{post.slug}' has no discussionId, no matching discussion by title, "
+                f"and auto-create failed: {exc}"
+            ) from exc
+
+        created_discussion_id = str(created_discussion.get("id", "")).strip()
+        if not created_discussion_id:
+            raise PostAICommentError(
+                f"Discussion auto-created for post '{post.slug}', but returned ID is empty."
+            )
+        print(
+            "[post_ai_comment.py] Created discussion automatically: "
+            f"{created_discussion.get('url', '')}"
+        )
+        return created_discussion_id
 
     if len(matches) > 1:
         candidates = ", ".join(
@@ -405,6 +438,24 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Number of recent discussions to inspect when resolving discussionId.",
     )
+    parser.add_argument(
+        "--discussion-category-id",
+        default=os.getenv("GISCUS_CATEGORY_ID", "").strip(),
+        type=str,
+        help=(
+            "Discussion category node ID used for auto-create. "
+            "Falls back to GISCUS_CATEGORY_ID."
+        ),
+    )
+    parser.add_argument(
+        "--discussion-category-name",
+        default=os.getenv("GISCUS_CATEGORY", "Comments").strip() or "Comments",
+        type=str,
+        help=(
+            "Discussion category name used when category ID is not set. "
+            "Falls back to GISCUS_CATEGORY (default: Comments)."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -427,6 +478,8 @@ def main() -> int:
             repo_owner=args.repo_owner,
             repo_name=args.repo_name,
             discussion_search_limit=args.discussion_search_limit,
+            discussion_category_id=args.discussion_category_id,
+            discussion_category_name=args.discussion_category_name,
         )
         print(f"[post_ai_comment.py] slug={post.slug}, discussion_id={discussion_id}")
         saved_markdown_path = persist_discussion_id_to_frontmatter(
