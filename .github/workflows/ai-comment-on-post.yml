@@ -26,6 +26,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Debug current git revision
+        run: |
+          git rev-parse HEAD
+          git branch --show-current
+
+      - name: Debug markdown payload
+        run: |
+          echo "=== RAW FILE ==="
+          cat "src/content/blog/${{ inputs.slug }}.md"
+          echo
+          echo "=== PARSED FILE ==="
+          python scripts/load_markdown.py --slug "${{ inputs.slug }}" --pretty
+
       - name: Generate and publish AI comment
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}

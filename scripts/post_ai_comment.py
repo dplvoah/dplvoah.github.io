@@ -214,6 +214,7 @@ def main() -> int:
     try:
         post = load_post_by_slug(args.slug)
         validate_post_for_comment(post)
+        print(f"[post_ai_comment.py] slug={post.slug}, discussion_id={post.discussion_id}")
 
         comment_text, response_data = generate_comment_for_post(
             post=post,
