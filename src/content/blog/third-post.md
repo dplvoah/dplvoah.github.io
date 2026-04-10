@@ -3,6 +3,7 @@ title: "Second Post"
 description: "The third post on my blog. Test it again."
 pubDate: "2026-04-10"
 author: "dplvoah"
+discussionId: "D_kwDOR8zCy84AlnJ9"
 ---
 
 因为作为测试的第二篇博文表现并不理想，所以我在此发布第三篇博文。目前不展开过多讨论。
