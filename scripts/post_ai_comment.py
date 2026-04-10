@@ -29,6 +29,7 @@ from github_discussions import (
     create_discussion,
     find_discussion_by_title,
     load_github_token,
+    update_discussion_title,
 )
 from load_markdown import BlogPost, MarkdownLoadError, load_post_by_slug
 
@@ -152,26 +153,65 @@ def resolve_discussion_id(
         raise PostAICommentError("--discussion-search-limit must be greater than 0.")
 
     # Keep discussion title aligned with giscus mapping=pathname.
-    # Example: /blog/second-post
-    discussion_mapping_key = f"/blog/{post.slug}"
+    # Existing discussions in this repo use title format: blog/<slug>/
+    canonical_mapping_key = f"blog/{post.slug}/"
 
-    try:
-        matches = find_discussion_by_title(
-            token=github_token,
-            owner=owner,
-            repo=name,
-            title=discussion_mapping_key,
-            limit=discussion_search_limit,
-        )
-    except GitHubDiscussionError as exc:
-        raise PostAICommentError(
-            f"Failed to look up discussion by pathname key '{discussion_mapping_key}': {exc}"
-        ) from exc
+    def find_by_title(title_text: str) -> list[dict[str, Any]]:
+        try:
+            return find_discussion_by_title(
+                token=github_token,
+                owner=owner,
+                repo=name,
+                title=title_text,
+                limit=discussion_search_limit,
+            )
+        except GitHubDiscussionError as exc:
+            raise PostAICommentError(
+                f"Failed to look up discussion by title '{title_text}': {exc}"
+            ) from exc
+
+    matches = find_by_title(canonical_mapping_key)
+
+    if not matches:
+        legacy_title_matches = find_by_title(post.title)
+        if len(legacy_title_matches) > 1:
+            legacy_candidates = ", ".join(
+                f"{item.get('id', '')}:{item.get('title', '')}"
+                for item in legacy_title_matches[:5]
+            )
+            raise PostAICommentError(
+                f"Multiple legacy discussions match title '{post.title}'. "
+                f"Set discussionId in frontmatter to disambiguate. "
+                f"Candidates: {legacy_candidates}"
+            )
+        if len(legacy_title_matches) == 1:
+            legacy_discussion = legacy_title_matches[0]
+            legacy_discussion_id = str(legacy_discussion.get("id", "")).strip()
+            if not legacy_discussion_id:
+                raise PostAICommentError(
+                    f"Found legacy discussion for '{post.title}', but ID is empty."
+                )
+            try:
+                updated_discussion = update_discussion_title(
+                    token=github_token,
+                    discussion_id=legacy_discussion_id,
+                    title=canonical_mapping_key,
+                )
+            except GitHubDiscussionError as exc:
+                raise PostAICommentError(
+                    f"Failed to rename legacy discussion '{post.title}' "
+                    f"to '{canonical_mapping_key}': {exc}"
+                ) from exc
+            print(
+                "[post_ai_comment.py] Renamed legacy discussion title to pathname key: "
+                f"{updated_discussion.get('url', '')}"
+            )
+            return legacy_discussion_id
 
     if not matches:
         discussion_body = (
             f"Auto-created discussion for blog post **{post.title}**.\n\n"
-            f"- Pathname key: `{discussion_mapping_key}`\n"
+            f"- Pathname key: `{canonical_mapping_key}`\n"
             f"- Slug: `{post.slug}`\n"
             f"- Date: `{post.date}`\n\n"
             f"{post.description}"
@@ -181,14 +221,14 @@ def resolve_discussion_id(
                 token=github_token,
                 owner=owner,
                 repo=name,
-                title=discussion_mapping_key,
+                title=canonical_mapping_key,
                 body=discussion_body,
                 category_id=discussion_category_id,
                 category_name=discussion_category_name,
             )
         except GitHubDiscussionError as exc:
             raise PostAICommentError(
-                f"Post '{post.slug}' has no discussionId, no matching discussion by pathname key, "
+                f"Post '{post.slug}' has no discussionId, no matching discussion by canonical key, "
                 f"and auto-create failed: {exc}"
             ) from exc
 
@@ -208,7 +248,7 @@ def resolve_discussion_id(
             f"{item.get('id', '')}:{item.get('title', '')}" for item in matches[:5]
         )
         raise PostAICommentError(
-            f"Multiple discussions match pathname key '{discussion_mapping_key}'. "
+            f"Multiple discussions match canonical key '{canonical_mapping_key}'. "
             f"Set discussionId in frontmatter to disambiguate. Candidates: {candidates}"
         )
 

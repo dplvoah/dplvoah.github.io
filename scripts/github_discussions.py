@@ -537,6 +537,66 @@ def create_discussion(
     return discussion
 
 
+def update_discussion_title(
+    *,
+    token: str,
+    discussion_id: str,
+    title: str,
+) -> dict[str, Any]:
+    """
+    Update an existing GitHub Discussion title.
+
+    Args:
+        token: GitHub authentication token.
+        discussion_id: Discussion node ID.
+        title: New discussion title.
+
+    Returns:
+        Updated discussion payload.
+
+    Raises:
+        GitHubDiscussionError: If inputs are invalid or update fails.
+    """
+    normalized_discussion_id = discussion_id.strip()
+    normalized_title = title.strip()
+    if not normalized_discussion_id:
+        raise GitHubDiscussionError("Discussion ID cannot be empty for title update.")
+    if not normalized_title:
+        raise GitHubDiscussionError("Discussion title cannot be empty for update.")
+
+    mutation = """
+    mutation UpdateDiscussionTitle($discussionId: ID!, $title: String!) {
+      updateDiscussion(input: {discussionId: $discussionId, title: $title}) {
+        discussion {
+          id
+          number
+          title
+          url
+          updatedAt
+        }
+      }
+    }
+    """
+    variables = {
+        "discussionId": normalized_discussion_id,
+        "title": normalized_title,
+    }
+
+    data = execute_github_graphql_query(
+        token=token,
+        query=mutation,
+        variables=variables,
+    )
+    try:
+        updated = data["data"]["updateDiscussion"]["discussion"]
+    except (KeyError, TypeError) as exc:
+        raise GitHubDiscussionError(
+            "GitHub response missing updateDiscussion.discussion"
+        ) from exc
+
+    return updated
+
+
 def parse_args() -> argparse.Namespace:
     """
     Parse CLI arguments.
