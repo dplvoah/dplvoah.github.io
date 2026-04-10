@@ -151,22 +151,27 @@ def resolve_discussion_id(
     if discussion_search_limit <= 0:
         raise PostAICommentError("--discussion-search-limit must be greater than 0.")
 
+    # Keep discussion title aligned with giscus mapping=pathname.
+    # Example: /blog/second-post
+    discussion_mapping_key = f"/blog/{post.slug}"
+
     try:
         matches = find_discussion_by_title(
             token=github_token,
             owner=owner,
             repo=name,
-            title=post.title,
+            title=discussion_mapping_key,
             limit=discussion_search_limit,
         )
     except GitHubDiscussionError as exc:
         raise PostAICommentError(
-            f"Failed to look up discussion by title '{post.title}': {exc}"
+            f"Failed to look up discussion by pathname key '{discussion_mapping_key}': {exc}"
         ) from exc
 
     if not matches:
         discussion_body = (
             f"Auto-created discussion for blog post **{post.title}**.\n\n"
+            f"- Pathname key: `{discussion_mapping_key}`\n"
             f"- Slug: `{post.slug}`\n"
             f"- Date: `{post.date}`\n\n"
             f"{post.description}"
@@ -176,14 +181,14 @@ def resolve_discussion_id(
                 token=github_token,
                 owner=owner,
                 repo=name,
-                title=post.title,
+                title=discussion_mapping_key,
                 body=discussion_body,
                 category_id=discussion_category_id,
                 category_name=discussion_category_name,
             )
         except GitHubDiscussionError as exc:
             raise PostAICommentError(
-                f"Post '{post.slug}' has no discussionId, no matching discussion by title, "
+                f"Post '{post.slug}' has no discussionId, no matching discussion by pathname key, "
                 f"and auto-create failed: {exc}"
             ) from exc
 
@@ -203,7 +208,7 @@ def resolve_discussion_id(
             f"{item.get('id', '')}:{item.get('title', '')}" for item in matches[:5]
         )
         raise PostAICommentError(
-            f"Multiple discussions match title '{post.title}'. "
+            f"Multiple discussions match pathname key '{discussion_mapping_key}'. "
             f"Set discussionId in frontmatter to disambiguate. Candidates: {candidates}"
         )
 
