@@ -106,6 +106,7 @@ jobs:
           for slug in ${{ steps.resolve-slugs.outputs.resolved_slugs }}; do
             python scripts/post_ai_comment.py \
               --slug "${slug}" \
+              --allowed-author "dplvoah" \
               --repo-owner "${{ github.repository_owner }}" \
               --repo-name "${{ github.event.repository.name }}" \
               --discussion-category-id "${GISCUS_CATEGORY_ID}" \

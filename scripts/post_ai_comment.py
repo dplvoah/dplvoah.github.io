@@ -62,6 +62,24 @@ def validate_post_for_comment(post: BlogPost) -> None:
         )
 
 
+def should_skip_post_by_author(*, post: BlogPost, allowed_author: str) -> bool:
+    """
+    Check whether a post should be skipped due to author restriction.
+
+    Args:
+        post: Parsed blog post object.
+        allowed_author: Restrictive author value. Empty means no restriction.
+
+    Returns:
+        True when post should be skipped, otherwise False.
+    """
+    normalized_allowed_author = allowed_author.strip()
+    if not normalized_allowed_author:
+        return False
+
+    return post.author.strip() != normalized_allowed_author
+
+
 def resolve_repo_for_discussion_lookup(
     *,
     repo_owner: str,
@@ -546,6 +564,15 @@ def parse_args() -> argparse.Namespace:
             "Falls back to GISCUS_CATEGORY (default: Comments)."
         ),
     )
+    parser.add_argument(
+        "--allowed-author",
+        default="",
+        type=str,
+        help=(
+            "If set, only posts whose frontmatter author exactly matches this value "
+            "will be processed. Non-matching posts are skipped."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -560,6 +587,12 @@ def main() -> int:
 
     try:
         post = load_post_by_slug(args.slug)
+        if should_skip_post_by_author(post=post, allowed_author=args.allowed_author):
+            print(
+                "[post_ai_comment.py] Skip post by author filter: "
+                f"slug={post.slug}, author={post.author}, allowed={args.allowed_author.strip()}"
+            )
+            return 0
         validate_post_for_comment(post)
         github_token = load_github_token()
         discussion_id, saved_markdown_path = ensure_post_discussion(
