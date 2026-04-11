@@ -1,7 +1,7 @@
 ---
-title: "Second Post"
+title: "Third Post"
 description: "The third post on my blog. Test it again."
-pubDate: "2026-04-10"
+pubDate: "2026-04-11"
 author: "dplvoah"
 discussionId: "D_kwDOR8zCy84AlnJ9"
 ---
