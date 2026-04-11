@@ -318,6 +318,51 @@ def persist_discussion_id_to_frontmatter(
     return markdown_path.resolve()
 
 
+def ensure_post_discussion(
+    *,
+    post: BlogPost,
+    repo_owner: str,
+    repo_name: str,
+    discussion_search_limit: int,
+    discussion_category_id: str,
+    discussion_category_name: str,
+    github_token: str | None = None,
+) -> tuple[str, Path | None]:
+    """
+    Ensure a post has an associated GitHub Discussion and optional backfilled ID.
+
+    Args:
+        post: Parsed blog post.
+        repo_owner: Repository owner for discussion lookup.
+        repo_name: Repository name for discussion lookup.
+        discussion_search_limit: Number of recent discussions to inspect.
+        discussion_category_id: Preferred category ID for auto-create.
+        discussion_category_name: Preferred category name for auto-create.
+        github_token: Optional preloaded token; if missing, loaded from env.
+
+    Returns:
+        Tuple of (resolved_discussion_id, saved_markdown_path_or_none).
+
+    Raises:
+        PostAICommentError: If discussion cannot be resolved or backfilled.
+    """
+    token = github_token or load_github_token()
+    discussion_id = resolve_discussion_id(
+        post=post,
+        github_token=token,
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        discussion_search_limit=discussion_search_limit,
+        discussion_category_id=discussion_category_id,
+        discussion_category_name=discussion_category_name,
+    )
+    saved_markdown_path = persist_discussion_id_to_frontmatter(
+        post=post,
+        discussion_id=discussion_id,
+    )
+    return discussion_id, saved_markdown_path
+
+
 def generate_comment_for_post(
     *,
     post: BlogPost,
@@ -517,20 +562,16 @@ def main() -> int:
         post = load_post_by_slug(args.slug)
         validate_post_for_comment(post)
         github_token = load_github_token()
-        discussion_id = resolve_discussion_id(
+        discussion_id, saved_markdown_path = ensure_post_discussion(
             post=post,
-            github_token=github_token,
             repo_owner=args.repo_owner,
             repo_name=args.repo_name,
             discussion_search_limit=args.discussion_search_limit,
             discussion_category_id=args.discussion_category_id,
             discussion_category_name=args.discussion_category_name,
+            github_token=github_token,
         )
         print(f"[post_ai_comment.py] slug={post.slug}, discussion_id={discussion_id}")
-        saved_markdown_path = persist_discussion_id_to_frontmatter(
-            post=post,
-            discussion_id=discussion_id,
-        )
         if saved_markdown_path is not None:
             print(
                 "[post_ai_comment.py] Backfilled discussionId to: "

@@ -1,0 +1,73 @@
+name: AI Auto Publish Post
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Force publish regardless of interval"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  auto-publish-ai-post:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      discussions: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Auto publish AI post
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          AI_GITHUB_TOKEN: ${{ secrets.AI_GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GISCUS_CATEGORY: "Comments"
+          GISCUS_CATEGORY_ID: "DIC_kwDOR8zCy84C6Xkq"
+          FORCE_PUBLISH: ${{ github.event.inputs.force_publish || 'false' }}
+        run: |
+          force_flag=""
+          if [ "$FORCE_PUBLISH" = "true" ]; then
+            force_flag="--force"
+          fi
+
+          python scripts/auto_publish_ai_post.py \
+            --author "imlevv" \
+            --min-days 2 \
+            --max-days 3 \
+            --repo-owner "${{ github.repository_owner }}" \
+            --repo-name "${{ github.event.repository.name }}" \
+            --discussion-category-id "${GISCUS_CATEGORY_ID}" \
+            --discussion-category-name "${GISCUS_CATEGORY}" \
+            ${force_flag}
+
+      - name: Commit and push generated post
+        run: |
+          if [ -z "$(git status --porcelain -- src/content/blog/*.md)" ]; then
+            echo "No new AI post changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/content/blog/*.md
+          git commit -m "feat: auto publish ai post [skip ai-comment]"
+          git push

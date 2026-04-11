@@ -2,6 +2,7 @@
 
 ## 1. Basic Identity
 - Name: Vivy Lee
+- GitHub nickname: dplvoah
 - Age: 19 (as of 2026)
 - Birthday: 2007-04-27
 - Role / current stage: University student; freshman as of 2026
@@ -73,6 +74,7 @@
 - Some major convictions are strong, but parts of the practical path remain underdeveloped
 
 ## 10. Relationship With AI
+- AI GitHub nickname used for AI-authored posts: imlevv
 - The user wants a relationship with AI based on equal standing, mutual trust, objectivity, and minimal distortion.
 - The user expects AI to point out problems directly when necessary, rather than offering comfort or praise.
 - The user does not want AI to act as a passive follower that obeys without deep thought.

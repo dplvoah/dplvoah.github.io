@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 from dataclasses import asdict, dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Final
 
@@ -34,6 +35,7 @@ class BlogPost:
     title: str
     date: str
     description: str
+    author: str
     draft: bool
     discussion_id: str
     body: str
@@ -159,6 +161,53 @@ def extract_discussion_id(frontmatter: dict[str, Any]) -> str:
     return str(raw_discussion_id).strip()
 
 
+def extract_author(frontmatter: dict[str, Any], file_path: Path) -> str:
+    """
+    Extract author from frontmatter.
+
+    Args:
+        frontmatter: Parsed YAML frontmatter.
+        file_path: Source file path for error reporting.
+
+    Returns:
+        Author string.
+
+    Raises:
+        MarkdownLoadError: If author is missing or empty.
+    """
+    author = str(frontmatter.get("author", "")).strip()
+    if not author:
+        raise MarkdownLoadError(f"Missing required field 'author': {file_path}")
+
+    return author
+
+
+def parse_date_as_date(date_text: str, file_path: Path) -> date:
+    """
+    Parse date text into datetime.date.
+
+    Args:
+        date_text: Date string from frontmatter.
+        file_path: Source file path for error reporting.
+
+    Returns:
+        Parsed date object.
+
+    Raises:
+        MarkdownLoadError: If date cannot be parsed as ISO date.
+    """
+    normalized = date_text.strip()
+    try:
+        return date.fromisoformat(normalized)
+    except ValueError:
+        try:
+            return datetime.fromisoformat(normalized.replace("Z", "+00:00")).date()
+        except ValueError as exc:
+            raise MarkdownLoadError(
+                f"Invalid date format '{date_text}', expected ISO date (YYYY-MM-DD): {file_path}"
+            ) from exc
+
+
 def normalize_post(file_path: Path) -> BlogPost:
     """
     Parse one markdown file into normalized BlogPost data.
@@ -178,6 +227,7 @@ def normalize_post(file_path: Path) -> BlogPost:
     title = str(frontmatter.get("title", "")).strip()
     date = extract_date(frontmatter, file_path)
     description = str(frontmatter.get("description", "")).strip()
+    author = extract_author(frontmatter, file_path)
     draft = bool(frontmatter.get("draft", False))
     discussion_id = extract_discussion_id(frontmatter)
 
@@ -196,6 +246,7 @@ def normalize_post(file_path: Path) -> BlogPost:
         title=title,
         date=date,
         description=description,
+        author=author,
         draft=draft,
         discussion_id=discussion_id,
         body=body,
@@ -247,6 +298,46 @@ def load_all_posts(include_drafts: bool = False) -> list[BlogPost]:
         posts.append(post)
 
     return posts
+
+
+def load_latest_post_by_author(
+    author: str,
+    *,
+    include_drafts: bool = False,
+) -> BlogPost | None:
+    """
+    Load the latest post by a specific author.
+
+    Args:
+        author: Author name to match exactly after trim.
+        include_drafts: Whether draft posts should be considered.
+
+    Returns:
+        Latest BlogPost by author, or None when no post exists.
+
+    Raises:
+        MarkdownLoadError: If author is empty or any post is invalid.
+    """
+    normalized_author = author.strip()
+    if not normalized_author:
+        raise MarkdownLoadError("Author cannot be empty when querying latest post.")
+
+    posts = [
+        post
+        for post in load_all_posts(include_drafts=include_drafts)
+        if post.author.strip() == normalized_author
+    ]
+    if not posts:
+        return None
+
+    posts.sort(
+        key=lambda post: (
+            parse_date_as_date(post.date, Path(post.source_path)),
+            post.slug,
+        ),
+        reverse=True,
+    )
+    return posts[0]
 
 
 def parse_args() -> argparse.Namespace:
