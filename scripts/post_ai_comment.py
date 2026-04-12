@@ -27,7 +27,9 @@ from github_discussions import (
     GitHubDiscussionError,
     add_discussion_comment,
     create_discussion,
+    delete_discussion_comment,
     find_discussion_by_title,
+    list_discussion_comments,
     load_github_token,
     update_discussion_title,
 )
@@ -453,6 +455,68 @@ def publish_comment_to_discussion(
         raise PostAICommentError(f"GitHub discussion publish failed: {exc}") from exc
 
 
+def delete_ai_comments_in_discussion(
+    *,
+    github_token: str,
+    discussion_id: str,
+    ai_author_login: str,
+    limit: int = 200,
+) -> int:
+    """
+    Delete existing AI comments in a discussion.
+
+    Args:
+        github_token: GitHub token.
+        discussion_id: Discussion node ID.
+        ai_author_login: AI account login to match.
+        limit: Maximum comments to inspect.
+
+    Returns:
+        Number of deleted comments.
+
+    Raises:
+        PostAICommentError: If listing or deletion fails.
+    """
+    normalized_login = ai_author_login.strip()
+    if not normalized_login:
+        raise PostAICommentError("--ai-author-login cannot be empty.")
+
+    try:
+        comments = list_discussion_comments(
+            token=github_token,
+            discussion_id=discussion_id,
+            limit=limit,
+        )
+    except GitHubDiscussionError as exc:
+        raise PostAICommentError(
+            f"Failed to list discussion comments for replacement: {exc}"
+        ) from exc
+
+    target_comments = [
+        item
+        for item in comments
+        if item.get("author_login", "").strip().lower() == normalized_login.lower()
+    ]
+
+    deleted_count = 0
+    for item in target_comments:
+        comment_id = str(item.get("id", "")).strip()
+        if not comment_id:
+            continue
+        try:
+            delete_discussion_comment(
+                token=github_token,
+                comment_id=comment_id,
+            )
+        except GitHubDiscussionError as exc:
+            raise PostAICommentError(
+                f"Failed to delete existing AI comment '{comment_id}': {exc}"
+            ) from exc
+        deleted_count += 1
+
+    return deleted_count
+
+
 def write_generation_record(output_data: dict[str, Any], slug: str) -> Path:
     """
     Write generation record to ai_output/comments/<slug>.json.
@@ -573,6 +637,20 @@ def parse_args() -> argparse.Namespace:
             "will be processed. Non-matching posts are skipped."
         ),
     )
+    parser.add_argument(
+        "--replace-existing-ai-comment",
+        action="store_true",
+        help=(
+            "Delete existing AI comments in the target discussion before "
+            "publishing a new one."
+        ),
+    )
+    parser.add_argument(
+        "--ai-author-login",
+        default=os.getenv("AI_AUTHOR_LOGIN", "imlevv").strip() or "imlevv",
+        type=str,
+        help="GitHub login used to identify AI-authored discussion comments.",
+    )
     return parser.parse_args()
 
 
@@ -609,6 +687,16 @@ def main() -> int:
             print(
                 "[post_ai_comment.py] Backfilled discussionId to: "
                 f"{saved_markdown_path}"
+            )
+        if args.replace_existing_ai_comment:
+            deleted_count = delete_ai_comments_in_discussion(
+                github_token=github_token,
+                discussion_id=discussion_id,
+                ai_author_login=args.ai_author_login,
+            )
+            print(
+                "[post_ai_comment.py] Deleted existing AI comments: "
+                f"{deleted_count}"
             )
 
         comment_text, response_data = generate_comment_for_post(

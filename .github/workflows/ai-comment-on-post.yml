@@ -19,6 +19,7 @@ jobs:
 
     permissions:
       contents: write
+      discussions: write
 
     steps:
       - name: Checkout repository
@@ -49,28 +50,15 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$MANUAL_SLUG" ]; then
-            slugs="$MANUAL_SLUG"
-          else
-            if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
-              changed_files=$(git diff-tree --no-commit-id --name-only -r "$HEAD_SHA" -- 'src/content/blog/*.md')
-            else
-              changed_files=$(git diff --name-only "$BEFORE_SHA" "$HEAD_SHA" -- 'src/content/blog/*.md')
-            fi
-
-            changed_slugs=$(printf '%s\n' "$changed_files" \
-              | sed -n 's#^src/content/blog/\(.*\)\.md$#\1#p' \
-              | sort -u \
-              | paste -sd ' ' -)
-
-            missing_discussion_slugs=$(python -c "from pathlib import Path; import re; p=re.compile(r'^---\\r?\\n(.*?)\\r?\\n---\\r?\\n?(.*)$', re.DOTALL); print(' '.join(path.stem for path in sorted(Path('src/content/blog').glob('*.md')) if (m:=p.match(path.read_text(encoding='utf-8'))) and not re.search(r'(?m)^\\s*discussionId\\s*:', m.group(1))))")
-
-            slugs=$(printf '%s\n%s\n' "$changed_slugs" "$missing_discussion_slugs" \
-              | tr ' ' '\n' \
-              | sed '/^$/d' \
-              | sort -u \
-              | paste -sd ' ' -)
-          fi
+          slugs=$(python scripts/select_ai_comment_targets.py \
+            --event-name "$EVENT_NAME" \
+            --manual-slug "$MANUAL_SLUG" \
+            --before-sha "$BEFORE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --allowed-author "dplvoah" \
+            --similarity-threshold 0.98 \
+            --char-delta-threshold 120 \
+            --slugs-only)
 
           echo "resolved_slugs=$slugs" >> "$GITHUB_OUTPUT"
 
@@ -107,6 +95,8 @@ jobs:
             python scripts/post_ai_comment.py \
               --slug "${slug}" \
               --allowed-author "dplvoah" \
+              --replace-existing-ai-comment \
+              --ai-author-login "imlevv" \
               --repo-owner "${{ github.repository_owner }}" \
               --repo-name "${{ github.event.repository.name }}" \
               --discussion-category-id "${GISCUS_CATEGORY_ID}" \

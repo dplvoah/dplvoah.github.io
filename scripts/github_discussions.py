@@ -20,6 +20,7 @@ ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
 GITHUB_GRAPHQL_API_URL: Final[str] = "https://api.github.com/graphql"
 REQUEST_TIMEOUT_SECONDS: Final[int] = 60
 DEFAULT_LIST_LIMIT: Final[int] = 20
+DEFAULT_DISCUSSION_COMMENT_LIMIT: Final[int] = 100
 
 
 class GitHubDiscussionError(Exception):
@@ -306,6 +307,147 @@ def add_discussion_comment(
         ) from exc
 
     return comment
+
+
+def list_discussion_comments(
+    *,
+    token: str,
+    discussion_id: str,
+    limit: int = DEFAULT_DISCUSSION_COMMENT_LIMIT,
+) -> list[dict[str, Any]]:
+    """
+    List comments for a GitHub Discussion by discussion node ID.
+
+    Args:
+        token: GitHub authentication token.
+        discussion_id: GitHub Discussion node ID.
+        limit: Maximum comments to fetch.
+
+    Returns:
+        List of normalized discussion comments.
+
+    Raises:
+        GitHubDiscussionError: If discussion lookup fails.
+    """
+    normalized_discussion_id = discussion_id.strip()
+    if not normalized_discussion_id:
+        raise GitHubDiscussionError("Discussion ID cannot be empty.")
+    if limit <= 0:
+        raise GitHubDiscussionError("Comment list limit must be greater than 0.")
+
+    query = """
+    query DiscussionComments($discussionId: ID!, $pageSize: Int!, $cursor: String) {
+      node(id: $discussionId) {
+        ... on Discussion {
+          comments(first: $pageSize, after: $cursor) {
+            nodes {
+              id
+              body
+              createdAt
+              author {
+                login
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }
+    }
+    """
+
+    page_size = min(50, limit)
+    cursor: str | None = None
+    comments: list[dict[str, Any]] = []
+
+    while len(comments) < limit:
+        variables = {
+            "discussionId": normalized_discussion_id,
+            "pageSize": page_size,
+            "cursor": cursor,
+        }
+        data = execute_github_graphql_query(
+            token=token,
+            query=query,
+            variables=variables,
+        )
+
+        try:
+            node = data["data"]["node"]
+            comment_connection = node["comments"] if node else None
+            nodes = comment_connection["nodes"] if comment_connection else None
+            page_info = comment_connection["pageInfo"] if comment_connection else None
+        except (KeyError, TypeError) as exc:
+            raise GitHubDiscussionError(
+                "GitHub response missing discussion comments fields."
+            ) from exc
+
+        if nodes is None:
+            raise GitHubDiscussionError(
+                f"Discussion not found or inaccessible: {normalized_discussion_id}"
+            )
+
+        for item in nodes:
+            if not item:
+                continue
+            comments.append(
+                {
+                    "id": str(item.get("id", "")).strip(),
+                    "body": str(item.get("body", "")).strip(),
+                    "createdAt": str(item.get("createdAt", "")).strip(),
+                    "author_login": str(
+                        (item.get("author") or {}).get("login", "")
+                    ).strip(),
+                }
+            )
+            if len(comments) >= limit:
+                break
+
+        has_next_page = bool((page_info or {}).get("hasNextPage"))
+        cursor = (page_info or {}).get("endCursor")
+        if not has_next_page or not cursor:
+            break
+
+    return comments
+
+
+def delete_discussion_comment(
+    *,
+    token: str,
+    comment_id: str,
+) -> None:
+    """
+    Delete a GitHub Discussion comment by node ID.
+
+    Args:
+        token: GitHub authentication token.
+        comment_id: Discussion comment node ID.
+
+    Raises:
+        GitHubDiscussionError: If deletion fails.
+    """
+    normalized_comment_id = comment_id.strip()
+    if not normalized_comment_id:
+        raise GitHubDiscussionError("Comment ID cannot be empty.")
+
+    mutation = """
+    mutation DeleteDiscussionComment($id: ID!) {
+      deleteDiscussionComment(input: {id: $id}) {
+        clientMutationId
+      }
+    }
+    """
+    variables = {
+        "id": normalized_comment_id,
+    }
+
+    execute_github_graphql_query(
+        token=token,
+        query=mutation,
+        variables=variables,
+    )
 
 
 def get_repository_discussion_context(
