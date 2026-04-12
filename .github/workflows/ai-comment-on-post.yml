@@ -107,13 +107,17 @@ jobs:
       - name: Commit discussionId backfill
         if: steps.resolve-slugs.outputs.has_slugs == 'true'
         run: |
-          if git diff --quiet -- src/content/blog/*.md; then
-            echo "No discussionId backfill changes to commit."
+          if [ -z "$(git status --porcelain -- src/content/blog ai_context/recent_memory.md ai_context/memory/interaction_events.jsonl)" ]; then
+            echo "No discussionId/runtime-memory changes to commit."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add src/content/blog/*.md
-          git commit -m "chore: backfill discussionId [skip ai-comment]"
+          git add ai_context/recent_memory.md
+          if [ -f "ai_context/memory/interaction_events.jsonl" ]; then
+            git add ai_context/memory/interaction_events.jsonl
+          fi
+          git commit -m "chore: backfill discussionId and refresh runtime memory [skip ai-comment]"
           git push

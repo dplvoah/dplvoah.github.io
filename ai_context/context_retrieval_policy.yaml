@@ -1,0 +1,118 @@
+version: 1
+
+defaults:
+  max_chars_per_file: 3500
+  max_total_chars: 15000
+
+common_always_on: []
+
+modes:
+  comment:
+    always_on:
+      - ai_context/memory/interaction_preferences.md
+      - ai_context/memory/shared_memory.md
+      - ai_context/memory/user_memory.md
+      - ai_context/memory/ai_memory.md
+      - ai_context/recent_memory.md
+      - ai_context/style_profiles/comment.md
+    optional:
+      - ai_context/ai_blog_brief.md
+    max_total_chars: 15000
+    max_chars:
+      ai_context/memory/user_memory.md: 4200
+      ai_context/memory/ai_memory.md: 3600
+      ai_context/memory/shared_memory.md: 3200
+      ai_context/recent_memory.md: 3000
+      ai_context/style_profiles/comment.md: 1500
+      ai_context/ai_blog_brief.md: 1200
+
+  reply:
+    always_on:
+      - ai_context/memory/interaction_preferences.md
+      - ai_context/memory/shared_memory.md
+      - ai_context/memory/user_memory.md
+      - ai_context/memory/ai_memory.md
+      - ai_context/recent_memory.md
+      - ai_context/style_profiles/reply.md
+    optional:
+      - ai_context/ai_blog_brief.md
+    max_total_chars: 13000
+    max_chars:
+      ai_context/memory/user_memory.md: 3600
+      ai_context/memory/ai_memory.md: 3200
+      ai_context/memory/shared_memory.md: 3000
+      ai_context/recent_memory.md: 2600
+      ai_context/style_profiles/reply.md: 1400
+      ai_context/ai_blog_brief.md: 1000
+
+  reflection:
+    always_on:
+      - ai_context/memory/interaction_preferences.md
+      - ai_context/memory/shared_memory.md
+      - ai_context/memory/user_memory.md
+      - ai_context/memory/ai_memory.md
+      - ai_context/recent_memory.md
+      - ai_context/style_profiles/reflection.md
+    optional:
+      - ai_context/ai_blog_brief.md
+    max_total_chars: 16000
+    max_chars:
+      ai_context/style_profiles/reflection.md: 1800
+
+  challenge:
+    always_on:
+      - ai_context/memory/interaction_preferences.md
+      - ai_context/memory/shared_memory.md
+      - ai_context/memory/user_memory.md
+      - ai_context/memory/ai_memory.md
+      - ai_context/recent_memory.md
+      - ai_context/style_profiles/challenge.md
+    optional:
+      - ai_context/ai_blog_brief.md
+    max_total_chars: 14000
+    max_chars:
+      ai_context/style_profiles/challenge.md: 1700
+
+  bridge:
+    always_on:
+      - ai_context/memory/interaction_preferences.md
+      - ai_context/memory/shared_memory.md
+      - ai_context/memory/user_memory.md
+      - ai_context/memory/ai_memory.md
+      - ai_context/recent_memory.md
+      - ai_context/style_profiles/bridge.md
+    optional:
+      - ai_context/ai_blog_brief.md
+    max_total_chars: 14000
+    max_chars:
+      ai_context/style_profiles/bridge.md: 1700
+
+  generic_comment:
+    always_on:
+      - ai_context/generic_context.md
+      - ai_context/style_profiles/comment.md
+    optional: []
+    max_total_chars: 6000
+    max_chars:
+      ai_context/generic_context.md: 3500
+      ai_context/style_profiles/comment.md: 1200
+
+  generic_reply:
+    always_on:
+      - ai_context/generic_context.md
+      - ai_context/style_profiles/reply.md
+    optional: []
+    max_total_chars: 6000
+    max_chars:
+      ai_context/generic_context.md: 3500
+      ai_context/style_profiles/reply.md: 1200
+
+  generic_reflection:
+    always_on:
+      - ai_context/generic_context.md
+      - ai_context/style_profiles/reflection.md
+    optional: []
+    max_total_chars: 6000
+    max_chars:
+      ai_context/generic_context.md: 3500
+      ai_context/style_profiles/reflection.md: 1400

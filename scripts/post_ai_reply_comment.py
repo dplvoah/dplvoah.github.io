@@ -26,12 +26,17 @@ from github_discussions import (
     load_github_token,
 )
 from load_markdown import MarkdownLoadError, load_post_by_slug
+from memory_access import (
+    MemoryAccessError,
+    can_personalized_read,
+    unauthorized_behavior_for_channel,
+)
+from memory_runtime import MemoryRuntimeError, record_interaction_event
 
 
 ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
 OUTPUT_DIR: Final[Path] = ROOT_DIR / "ai_output" / "replies"
 CANONICAL_TITLE_PATTERN: Final[re.Pattern[str]] = re.compile(r"^/?blog/([^/]+)/?$")
-DEFAULT_ALLOWED_COMMENT_AUTHOR: Final[str] = "dplvoah"
 DEFAULT_AI_AUTHOR_LOGIN: Final[str] = "imlevv"
 DEFAULT_MODEL: Final[str] = "deepseek-chat"
 DEFAULT_TEMPERATURE: Final[float] = 0.9
@@ -57,9 +62,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--allowed-comment-author",
-        default=DEFAULT_ALLOWED_COMMENT_AUTHOR,
+        default="",
         type=str,
-        help="Only this GitHub login can trigger AI reply.",
+        help="Optional strict author allowlist (single login). Empty means use permission policy only.",
     )
     parser.add_argument(
         "--ai-author-login",
@@ -290,8 +295,6 @@ def main() -> int:
     try:
         allowed_comment_author = args.allowed_comment_author.strip()
         ai_author_login = args.ai_author_login.strip()
-        if not allowed_comment_author:
-            raise PostAIReplyCommentError("--allowed-comment-author cannot be empty.")
         if not ai_author_login:
             raise PostAIReplyCommentError("--ai-author-login cannot be empty.")
 
@@ -323,12 +326,23 @@ def main() -> int:
             )
             return 0
 
-        if event_comment_author.lower() != allowed_comment_author.lower():
+        if (
+            allowed_comment_author
+            and event_comment_author.lower() != allowed_comment_author.lower()
+        ):
             print(
                 "[post_ai_reply_comment.py] Skip non-target comment author: "
                 f"author={event_comment_author}, allowed={allowed_comment_author}"
             )
             return 0
+        if not can_personalized_read(event_comment_author):
+            behavior = unauthorized_behavior_for_channel("discussion_reply")
+            if behavior == "skip":
+                print(
+                    "[post_ai_reply_comment.py] Skip unauthorized identity by permission policy: "
+                    f"author={event_comment_author}, behavior={behavior}"
+                )
+                return 0
 
         discussion_title = str(discussion.get("title", "")).strip()
         if not discussion_title:
@@ -368,12 +382,23 @@ def main() -> int:
             )
             return 0
 
-        if parent_author.lower() != allowed_comment_author.lower():
+        if (
+            allowed_comment_author
+            and parent_author.lower() != allowed_comment_author.lower()
+        ):
             print(
                 "[post_ai_reply_comment.py] Skip parent comment author mismatch: "
                 f"author={parent_author}, allowed={allowed_comment_author}"
             )
             return 0
+        if not can_personalized_read(parent_author):
+            behavior = unauthorized_behavior_for_channel("discussion_reply")
+            if behavior == "skip":
+                print(
+                    "[post_ai_reply_comment.py] Skip parent author by permission policy: "
+                    f"author={parent_author}, behavior={behavior}"
+                )
+                return 0
 
         existing_replies = parent_comment.get("replies") or []
         for reply in existing_replies:
@@ -390,7 +415,10 @@ def main() -> int:
             raise PostAIReplyCommentError("Parent comment body is empty.")
 
         api_key = load_api_key()
-        system_context = build_system_context()
+        system_context = build_system_context(
+            mode="reply",
+            target_account=parent_author,
+        )
         user_prompt = build_reply_prompt(
             post_title=post.title,
             post_date=post.date,
@@ -423,6 +451,20 @@ def main() -> int:
 
         print(json.dumps(published_reply, ensure_ascii=False, indent=2))
 
+        try:
+            record_interaction_event(
+                principal_account=parent_author,
+                interaction_type="discussion_reply",
+                source_summary=event_comment_body,
+                ai_summary=reply_text,
+                reference=event_comment_url or slug,
+            )
+        except MemoryRuntimeError as exc:
+            print(
+                "[post_ai_reply_comment.py] WARN: memory runtime update failed: "
+                f"{exc}"
+            )
+
         if args.write_file:
             output_payload = {
                 "slug": slug,
@@ -454,6 +496,7 @@ def main() -> int:
         AICommentGenerationError,
         ContextBuildError,
         GitHubDiscussionError,
+        MemoryAccessError,
         MarkdownLoadError,
         PostAIReplyCommentError,
     ) as exc:

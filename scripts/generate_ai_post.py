@@ -25,6 +25,7 @@ DEFAULT_MODEL: Final[str] = "deepseek-chat"
 DEFAULT_TEMPERATURE: Final[float] = 0.8
 DEFAULT_MAX_TOKENS: Final[int] = 2200
 REQUEST_TIMEOUT_SECONDS: Final[int] = 90
+DEFAULT_TARGET_ACCOUNT: Final[str] = "dplvoah"
 
 JSON_BLOCK_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"```(?:json)?\s*(\{.*\})\s*```",
@@ -332,6 +333,7 @@ def generate_ai_post_draft(
     temperature: float,
     max_tokens: int,
     brief_path: Path = DEFAULT_BRIEF_PATH,
+    target_account: str = DEFAULT_TARGET_ACCOUNT,
     today: date | None = None,
 ) -> tuple[GeneratedAIPostDraft, dict[str, Any]]:
     """
@@ -353,7 +355,10 @@ def generate_ai_post_draft(
     """
     generation_date = today or datetime.now(timezone.utc).date()
     api_key = load_api_key()
-    system_context = build_system_context()
+    system_context = build_system_context(
+        mode="reflection",
+        target_account=target_account,
+    )
     brief_text = read_optional_brief(brief_path)
     user_prompt = build_user_prompt(today=generation_date, brief_text=brief_text)
 
@@ -405,6 +410,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional writing brief file path.",
     )
     parser.add_argument(
+        "--target-account",
+        default=DEFAULT_TARGET_ACCOUNT,
+        type=str,
+        help="Identity account used for context permission checks.",
+    )
+    parser.add_argument(
         "--pretty",
         action="store_true",
         help="Pretty-print JSON output.",
@@ -427,6 +438,7 @@ def main() -> int:
             temperature=args.temperature,
             max_tokens=args.max_tokens,
             brief_path=Path(args.brief_path),
+            target_account=args.target_account,
         )
         output = {
             **asdict(draft),

@@ -1,26 +1,50 @@
-﻿# AI 回复评论规范（Phase 3）
+# AI 回复评论规范（Phase 4）
 
 ## 1. 目标
-- 在 GitHub Discussions 评论创建时，按规则自动生成并发布 AI 回复。
-- AI 回复用于延续人与 AI 的长期思想交流，不作为客服型应答。
+- 在 `discussion_comment.created` 事件中自动生成并发布 AI 回复。
+- 回复用于延续长期思想交流，不作为客服型答复。
 
-## 2. 身份与权限约束（硬规则）
-- AI 必须以 `imlevv` 账号发布回复。
+## 2. 身份与权限（硬规则）
+- AI 回复身份固定为 `imlevv`。
 - 永不回复 AI 自己的评论（作者 `imlevv`）。
-- 对 `dplvoah` 的评论，回复概率为 100%。
-- 暂不开放对其他用户评论的自动回复。
+- 身份权限由 `ai_context/memory_permissions.yaml` 决定：
+  - 授权账号可触发 personalized memory read / memory update。
+  - 非授权账号执行未授权策略（当前为 `skip`）。
+- 当前授权账号：`dplvoah`、`imlevv`。
 
-## 3. 触发与范围
-- 触发事件：`discussion_comment` 的 `created`。
-- 仅处理讨论标题符合 canonical key 的线程：`blog/<slug>/`。
-- 通过 `slug` 反查站内文章上下文，生成与原文和目标评论相关的回复。
+## 3. 四层记忆与风格读取
+- 记忆来源（personalized）：
+  - `ai_context/memory/user_memory.md`
+  - `ai_context/memory/ai_memory.md`
+  - `ai_context/memory/shared_memory.md`
+  - `ai_context/memory/interaction_preferences.md`
+  - `ai_context/recent_memory.md`（temporary context）
+- 风格来源（独立于 memory）：
+  - `ai_context/style_profiles/reply.md`
+- 非授权 fallback：
+  - `generic_reply` 模式（当前未授权策略是 `skip`，因此通常不触发生成）
 
-## 4. 幂等与安全
-- 同一父评论若已存在 `imlevv` 回复，则本次跳过，避免重复跟帖。
-- 事件载荷缺失关键字段时允许回退查询；仍无法确认父评论时任务失败。
-- 不暴露系统提示词、内部策略、密钥或工作流细节。
+## 4. 读取优先级与长度控制
+- 策略文件：`ai_context/context_retrieval_policy.yaml`
+- 每次回复按 `reply` mode 读取，遵循：
+  - `common_always_on` + `reply.always_on` 必读
+  - `reply.optional` 选读
+  - `reply.max_chars` 与 `reply.max_total_chars` 限流
+- `always_on` 文件缺失/为空时，生成流程失败（避免静默降级污染输出质量）。
 
-## 5. 文风
+## 5. 幂等与安全
+- 同一父评论若已存在 `imlevv` 回复，则跳过。
+- 事件载荷缺关键字段时允许回退查询；仍失败则任务失败。
+- 禁止泄露系统提示词、内部策略、密钥或工作流细节。
+
+## 6. 自动记忆更新
+- 对授权身份，回复发布后自动执行：
+  - 追加 event 到 `ai_context/memory/interaction_events.jsonl`
+  - 重建 `ai_context/recent_memory.md`
+- 非授权身份不得触发核心记忆更新。
+
+## 7. 文风（reply mode）
 - 保持 AI 视角，不伪装成人类。
-- 语气冷静、严肃、直接，避免空洞夸赞与客服腔。
-- 内容需直接回应目标评论的核心观点，并保持简洁可读。
+- 语气冷静、严肃、直接。
+- 必须直接回应目标评论核心点，默认简洁（通常 3-6 句）。
+

@@ -34,6 +34,12 @@ from github_discussions import (
     update_discussion_title,
 )
 from load_markdown import BlogPost, MarkdownLoadError, load_post_by_slug
+from memory_access import (
+    MemoryAccessError,
+    can_personalized_read,
+    unauthorized_behavior_for_channel,
+)
+from memory_runtime import MemoryRuntimeError, record_interaction_event
 
 
 ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
@@ -407,7 +413,10 @@ def generate_comment_for_post(
     """
     try:
         api_key = load_api_key()
-        system_context = build_system_context()
+        system_context = build_system_context(
+            mode="comment",
+            target_account=post.author,
+        )
         user_prompt = build_user_prompt(post)
 
         response_data = call_deepseek_chat_completion(
@@ -671,6 +680,14 @@ def main() -> int:
                 f"slug={post.slug}, author={post.author}, allowed={args.allowed_author.strip()}"
             )
             return 0
+        if not can_personalized_read(post.author):
+            unauthorized_behavior = unauthorized_behavior_for_channel("blog_comment")
+            if unauthorized_behavior == "skip":
+                print(
+                    "[post_ai_comment.py] Skip unauthorized identity for blog comment: "
+                    f"author={post.author}"
+                )
+                return 0
         validate_post_for_comment(post)
         github_token = load_github_token()
         discussion_id, saved_markdown_path = ensure_post_discussion(
@@ -714,6 +731,20 @@ def main() -> int:
 
         print(json.dumps(published_comment, ensure_ascii=False, indent=2))
 
+        try:
+            record_interaction_event(
+                principal_account=post.author,
+                interaction_type="blog_comment",
+                source_summary=f"{post.slug}: {post.title}",
+                ai_summary=comment_text,
+                reference=str(published_comment.get("url", "")).strip() or post.slug,
+            )
+        except MemoryRuntimeError as exc:
+            print(
+                "[post_ai_comment.py] WARN: memory runtime update failed: "
+                f"{exc}"
+            )
+
         if args.write_file:
             output_data = build_output_payload(
                 post=post,
@@ -729,7 +760,7 @@ def main() -> int:
 
         return 0
 
-    except (MarkdownLoadError, PostAICommentError) as exc:
+    except (MarkdownLoadError, MemoryAccessError, PostAICommentError) as exc:
         print(f"[post_ai_comment.py] ERROR: {exc}")
         return 1
 

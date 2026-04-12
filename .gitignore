@@ -35,9 +35,7 @@ venv/
 !.env.example
 
 # AI outputs
-ai_output/comments/
-ai_output/tmp/
-ai_output/logs/
+ai_output/
 
 # OS / editor
 .DS_Store

@@ -1,0 +1,22 @@
+version: 1
+
+identities:
+  dplvoah:
+    personalized_read: true
+    memory_write: true
+    memory_update: true
+  imlevv:
+    personalized_read: true
+    memory_write: true
+    memory_update: true
+
+defaults:
+  personalized_read: false
+  memory_write: false
+  memory_update: false
+
+unauthorized_behavior:
+  discussion_reply: skip
+  blog_comment: skip
+  ai_post: allow_generic
+

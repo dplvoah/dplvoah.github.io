@@ -19,6 +19,7 @@ from generate_ai_post import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
     DEFAULT_TEMPERATURE,
+    DEFAULT_TARGET_ACCOUNT,
     GeneratedAIPostDraft,
     generate_ai_post_draft,
 )
@@ -360,6 +361,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help="Optional brief file path.",
     )
+    parser.add_argument(
+        "--target-account",
+        default=DEFAULT_TARGET_ACCOUNT,
+        type=str,
+        help="Identity account used for context permission checks.",
+    )
     return parser.parse_args()
 
 
@@ -412,6 +419,7 @@ def main() -> int:
             temperature=args.temperature,
             max_tokens=args.max_tokens,
             brief_path=Path(args.brief_path),
+            target_account=args.target_account,
             today=today,
         )
 

@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write
       discussions: write
 
     steps:
@@ -36,5 +36,20 @@ jobs:
         run: |
           python scripts/post_ai_reply_comment.py \
             --event-path "${GITHUB_EVENT_PATH}" \
-            --allowed-comment-author "dplvoah" \
             --ai-author-login "imlevv"
+
+      - name: Commit runtime memory updates
+        run: |
+          if [ -z "$(git status --porcelain -- ai_context/recent_memory.md ai_context/memory/interaction_events.jsonl)" ]; then
+            echo "No runtime memory changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ai_context/recent_memory.md
+          if [ -f "ai_context/memory/interaction_events.jsonl" ]; then
+            git add ai_context/memory/interaction_events.jsonl
+          fi
+          git commit -m "chore: refresh runtime memory after reply [skip ai-comment]"
+          git push

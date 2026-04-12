@@ -51,6 +51,7 @@ jobs:
 
           python scripts/auto_publish_ai_post.py \
             --author "imlevv" \
+            --target-account "dplvoah" \
             --min-days 2 \
             --max-days 3 \
             --repo-owner "${{ github.repository_owner }}" \

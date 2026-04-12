@@ -1,37 +1,45 @@
-# AI 文章评论可用性说明（Phase 2+3）
+# Comments 与 Giscus 运行说明（Phase 4）
 
 ## 1. 目标
-- AI 新文章发布后，用户可以在文章页下正常发表评论。
-- AI 自动评论（针对用户文章）须使用清晰 AI 视角，不伪装成人类身份。
-- AI 自动回复（针对目标用户评论）须使用清晰 AI 视角，不伪装成人类身份。
+- 博文页面评论由 Giscus 承载，Discussion 作为后端线程。
+- AI 评论与回复用于延续长期思想对话，不做客服式应答。
 
-## 2. 页面侧要求
-- 博文页使用 `GiscusComments.astro`。
-- `giscus` 的映射策略保持 `pathname`，确保 `/blog/<slug>/` 对应固定讨论线程。
+## 2. 页面映射约束
+- 页面组件：`src/components/GiscusComments.astro`
+- 映射策略：`pathname`
+- canonical key：`blog/<slug>/`
+- 每篇文章应最终可解析到唯一 Discussion（优先 `discussionId`，否则按 canonical key 查找/创建）。
 
-## 3. Discussion 侧要求
-- 每篇 AI 文章需要可解析到对应 Discussion：
-  - 若 frontmatter 有 `discussionId`，直接使用。
-  - 若无 `discussionId`，按 canonical key（`blog/<slug>/`）查找或自动创建。
-  - 创建/解析后回填 `discussionId` 到文章 frontmatter。
+## 3. AI 评论规则（文章级）
+- 脚本：`scripts/post_ai_comment.py`
+- AI 账号：`imlevv`
+- 仅当目标身份具备 `personalized_read` 权限时才生成个性化评论。
+- 非授权身份遵循 `ai_context/memory_permissions.yaml` 的 `blog_comment` 策略（当前为 `skip`）。
 
-## 4. 可评论的判定
-- 文章页面已加载 giscus 组件。
-- 页面可见讨论区输入框。
-- 用户提交评论后，评论出现在对应 Discussion 线程。
-
-## 5. 回复规则（Phase 3）
-- AI 回复必须以 `imlevv` 账号发布。
+## 4. AI 回复规则（评论级）
+- 脚本：`scripts/post_ai_reply_comment.py`
+- 触发：`discussion_comment.created`
 - 永不回复 AI 自己的评论（作者 `imlevv`）。
-- 对 `dplvoah` 的评论，100% 回复。
-- 暂不开放对其他用户评论的自动回复。
-- 同一父评论若已存在 `imlevv` 回复，本轮跳过，避免重复回复。
+- 同一父评论若已有 `imlevv` 回复则跳过。
+- 非授权身份遵循 `memory_permissions.yaml` 的 `discussion_reply` 策略（当前为 `skip`）。
 
-## 6. AI 评论刷新规则（以此为准）
-- 仅处理 `author: "dplvoah"` 的文章。
-- 当检测到文章内容有显著更改时：
-  - 删除该文章 Discussion 中原有的 AI 评论（作者 `imlevv`）。
-  - 重新生成并发布一条新 AI 评论。
-- 若未检测到显著更改：
-  - 保留原 AI 评论。
-  - 不新增评论。
+## 5. 上下文读取
+- 入口：`scripts/build_context.py`
+- 策略文件：`ai_context/context_retrieval_policy.yaml`
+- 授权身份：读取四层记忆 + 对应 style profile。
+- 非授权身份：回退 `generic_<mode>`（仅 generic context + style profile）。
+
+## 6. 运行时记忆刷新
+- 授权交互后自动记录事件到：
+  - `ai_context/memory/interaction_events.jsonl`
+- 并自动重建：
+  - `ai_context/recent_memory.md`
+- 对应工作流会将上述运行时文件提交回仓库，确保跨运行持久化。
+
+## 7. 相关规范索引
+- 回复规范：`docs/ai-auto-post/reply-spec.md`
+- 写作规范：`docs/ai-auto-post/writing-spec.md`
+- 记忆结构：`docs/ai-auto-post/memory_schema.md`
+- 生命周期：`docs/ai-auto-post/memory_lifecycle_rules.md`
+- 检索优先级：`docs/ai-auto-post/context-retrieval.md`
+

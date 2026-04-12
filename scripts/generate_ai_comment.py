@@ -320,8 +320,11 @@ def main() -> int:
 
     try:
         api_key = load_api_key()
-        system_context = build_system_context()
         post = load_post_by_slug(args.slug)
+        system_context = build_system_context(
+            mode="comment",
+            target_account=post.author,
+        )
         user_prompt = build_user_prompt(post)
 
         response_data = call_deepseek_chat_completion(
