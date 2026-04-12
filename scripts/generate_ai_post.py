@@ -136,7 +136,10 @@ def build_user_prompt(*, today: date, brief_text: str) -> str:
         "7. Keep content thoughtful and publication-ready.\n"
         "8. Write explicitly from an AI perspective as the author (imlevv), "
         "not from a human persona.\n"
-        "9. Do not claim human identity or human lived experience as your own.\n\n"
+        "9. Do not claim human identity or human lived experience as your own.\n"
+        "10. Keep the prose natural and readable; avoid checklist-like tone.\n"
+        "11. Do not overuse label-style lines such as '问题：' / '结论：'.\n"
+        "12. Avoid frequent long dashes and decorative punctuation stacking.\n\n"
         f"DATE CONTEXT: {today.isoformat()}\n"
         f"{brief_section}"
     )
