@@ -46,17 +46,47 @@ def append_event_jsonl(event: dict[str, Any]) -> None:
         ) from exc
 
 
+def read_tail_lines(file_path: Path, *, max_lines: int, chunk_size: int = 4096) -> list[str]:
+    """Read latest lines from a UTF-8 text file without loading the full file."""
+    if max_lines <= 0:
+        return []
+
+    try:
+        with file_path.open("rb") as fp:
+            fp.seek(0, 2)
+            file_size = fp.tell()
+            if file_size <= 0:
+                return []
+
+            buffer = b""
+            pointer = file_size
+            newline_count = 0
+
+            while pointer > 0 and newline_count <= max_lines:
+                read_size = min(chunk_size, pointer)
+                pointer -= read_size
+                fp.seek(pointer)
+                chunk = fp.read(read_size)
+                buffer = chunk + buffer
+                newline_count = buffer.count(b"\n")
+
+        text = buffer.decode("utf-8", errors="ignore")
+        lines = text.splitlines()
+        if len(lines) <= max_lines:
+            return lines
+        return lines[-max_lines:]
+    except OSError as exc:
+        raise MemoryRuntimeError(f"Failed to read interaction event log: {file_path}") from exc
+
+
 def read_last_events(limit: int = MAX_EVENTS_IN_RECENT) -> list[dict[str, Any]]:
     """Read and return the latest N events (newest first)."""
     if not INTERACTION_EVENTS_PATH.exists() or not INTERACTION_EVENTS_PATH.is_file():
         return []
-
-    try:
-        lines = INTERACTION_EVENTS_PATH.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        raise MemoryRuntimeError(
-            f"Failed to read interaction event log: {INTERACTION_EVENTS_PATH}"
-        ) from exc
+    lines = read_tail_lines(
+        INTERACTION_EVENTS_PATH,
+        max_lines=max(limit * 3, limit),
+    )
 
     events: list[dict[str, Any]] = []
     for raw in reversed(lines):

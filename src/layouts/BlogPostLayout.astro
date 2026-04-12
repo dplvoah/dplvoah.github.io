@@ -1,83 +1,54 @@
----
+﻿---
 import GiscusComments from "../components/GiscusComments.astro";
+import BaseLayout from "./BaseLayout.astro";
 
 const { frontmatter } = Astro.props;
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>{frontmatter.title}</title>
-    <style>
-      :root {
-        color-scheme: dark;
-      }
+<BaseLayout title={frontmatter.title}>
+  <p><a href="/">← Back to Home</a></p>
+  <h1>{frontmatter.title}</h1>
+  <div class="meta">
+    {frontmatter.pubDate && new Date(frontmatter.pubDate).toLocaleDateString("en-US")}
+  </div>
 
-      body {
-        margin: 0;
-        font-family: Arial, Helvetica, sans-serif;
-        background: #0b0b0b;
-        color: #f5f5f5;
-        line-height: 1.75;
-      }
+  <article>
+    <slot />
+  </article>
 
-      .container {
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 48px 20px 80px;
-      }
+  <div class="comments-wrap">
+    <GiscusComments />
+  </div>
+</BaseLayout>
 
-      a {
-        color: #8ab4ff;
-        text-decoration: none;
-      }
+<style>
+  a {
+    color: #8ab4ff;
+  }
 
-      a:hover {
-        text-decoration: underline;
-      }
+  h1 {
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
 
-      h1 {
-        line-height: 1.2;
-        margin-bottom: 12px;
-      }
+  .meta {
+    color: #a1a1aa;
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
 
-      .meta {
-        color: #a1a1aa;
-        font-size: 14px;
-        margin-bottom: 32px;
-      }
+  article {
+    font-size: 18px;
+    line-height: 1.75;
+  }
 
-      article {
-        font-size: 18px;
-      }
+  p {
+    margin: 0 0 20px;
+  }
 
-      p {
-        margin: 0 0 20px;
-      }
-
-      .comments-wrap {
-        margin-top: 56px;
-        padding-top: 24px;
-        border-top: 1px solid #27272a;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="container">
-      <p><a href="/">← Back to Home</a></p>
-      <h1>{frontmatter.title}</h1>
-      <div class="meta">
-        {frontmatter.pubDate && new Date(frontmatter.pubDate).toLocaleDateString("en-US")}
-      </div>
-
-      <article>
-        <slot />
-      </article>
-
-      <div class="comments-wrap">
-        <GiscusComments />
-      </div>
-    </main>
-  </body>
-</html>
+  .comments-wrap {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid #27272a;
+  }
+</style>

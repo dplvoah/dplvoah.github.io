@@ -11,6 +11,13 @@ from pathlib import Path
 from typing import Any, Final
 
 from build_context import ContextBuildError, build_system_context
+from lib.ai_defaults import (
+    DEEPSEEK_DEFAULT_MODEL,
+    REPLY_DEFAULT_MAX_TOKENS,
+    REPLY_DEFAULT_TEMPERATURE,
+)
+from lib.output_records import write_json_record
+from lib.paths import AI_OUTPUT_DIR
 from generate_ai_comment import (
     AICommentGenerationError,
     call_deepseek_chat_completion,
@@ -34,13 +41,12 @@ from memory_access import (
 from memory_runtime import MemoryRuntimeError, record_interaction_event
 
 
-ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
-OUTPUT_DIR: Final[Path] = ROOT_DIR / "ai_output" / "replies"
+OUTPUT_DIR: Final[Path] = AI_OUTPUT_DIR / "replies"
 CANONICAL_TITLE_PATTERN: Final[re.Pattern[str]] = re.compile(r"^/?blog/([^/]+)/?$")
 DEFAULT_AI_AUTHOR_LOGIN: Final[str] = "imlevv"
-DEFAULT_MODEL: Final[str] = "deepseek-chat"
-DEFAULT_TEMPERATURE: Final[float] = 0.9
-DEFAULT_MAX_TOKENS: Final[int] = 800
+DEFAULT_MODEL: Final[str] = DEEPSEEK_DEFAULT_MODEL
+DEFAULT_TEMPERATURE: Final[float] = REPLY_DEFAULT_TEMPERATURE
+DEFAULT_MAX_TOKENS: Final[int] = REPLY_DEFAULT_MAX_TOKENS
 
 
 class PostAIReplyCommentError(Exception):
@@ -277,18 +283,12 @@ def write_generation_record(
     safe_comment_id = re.sub(r"[^0-9a-zA-Z_-]", "-", comment_database_id.strip() or "unknown")
     output_path = OUTPUT_DIR / f"{slug}-{safe_comment_id}.json"
 
-    try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-    except OSError as exc:
-        raise PostAIReplyCommentError(
-            f"Failed to write output file: {output_path}"
-        ) from exc
-
-    return output_path.resolve()
+    return write_json_record(
+        output_path=output_path,
+        payload=payload,
+        error_cls=PostAIReplyCommentError,
+        error_prefix="Failed to write output file",
+    )
 
 
 def main() -> int:

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final
 
@@ -211,6 +212,7 @@ def dedupe_paths(paths: list[Path]) -> list[Path]:
     return result
 
 
+@lru_cache(maxsize=1)
 def load_retrieval_policy() -> RetrievalPolicy:
     """
     Load and validate context retrieval policy yaml.

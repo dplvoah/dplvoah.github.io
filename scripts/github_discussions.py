@@ -1,4 +1,4 @@
-# List recent discussions ```python scripts/github_discussions.py --owner dplvoah --repo dplvoah.github.io --list-discussions```
+﻿# List recent discussions ```python scripts/github_discussions.py --owner dplvoah --repo dplvoah.github.io --list-discussions```
 
 # Find discussions by title ```python scripts/github_discussions.py --owner dplvoah --repo dplvoah.github.io --find-by-title "Discussion Title"```
 
@@ -8,17 +8,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-from pathlib import Path
 from typing import Any, Final
 
-import requests
-from dotenv import load_dotenv
+from lib.github_graphql import (
+    execute_github_graphql_query as execute_github_graphql_query_impl,
+    load_ai_github_token,
+)
 
-
-ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
-GITHUB_GRAPHQL_API_URL: Final[str] = "https://api.github.com/graphql"
-REQUEST_TIMEOUT_SECONDS: Final[int] = 60
 DEFAULT_LIST_LIMIT: Final[int] = 20
 DEFAULT_DISCUSSION_COMMENT_LIMIT: Final[int] = 100
 DEFAULT_DISCUSSION_REPLY_LIMIT: Final[int] = 50
@@ -38,15 +34,7 @@ def load_github_token() -> str:
     Raises:
         GitHubDiscussionError: If token is missing.
     """
-    load_dotenv()
-
-    token = os.getenv("AI_GITHUB_TOKEN", "").strip()
-    if not token:
-        raise GitHubDiscussionError(
-            "Missing AI_GITHUB_TOKEN. Set it in environment or .env file."
-        )
-
-    return token
+    return load_ai_github_token(error_cls=GitHubDiscussionError)
 
 
 def execute_github_graphql_query(
@@ -69,47 +57,12 @@ def execute_github_graphql_query(
     Raises:
         GitHubDiscussionError: If request fails or response is invalid.
     """
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/vnd.github+json",
-    }
-
-    payload = {
-        "query": query,
-        "variables": variables,
-    }
-
-    try:
-        response = requests.post(
-            GITHUB_GRAPHQL_API_URL,
-            headers=headers,
-            json=payload,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-    except requests.RequestException as exc:
-        raise GitHubDiscussionError(f"GitHub GraphQL request failed: {exc}") from exc
-
-    if response.status_code != 200:
-        raise GitHubDiscussionError(
-            f"GitHub GraphQL API returned {response.status_code}: {response.text}"
-        )
-
-    try:
-        data = response.json()
-    except ValueError as exc:
-        raise GitHubDiscussionError(
-            "Failed to decode GitHub GraphQL JSON response."
-        ) from exc
-
-    if "errors" in data and data["errors"]:
-        raise GitHubDiscussionError(
-            f"GitHub GraphQL returned errors: "
-            f"{json.dumps(data['errors'], ensure_ascii=False)}"
-        )
-
-    return data
-
+    return execute_github_graphql_query_impl(
+        token=token,
+        query=query,
+        variables=variables,
+        error_cls=GitHubDiscussionError,
+    )
 
 def list_discussions(
     *,
@@ -1083,3 +1036,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

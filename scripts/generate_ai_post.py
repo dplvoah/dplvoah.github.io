@@ -1,47 +1,41 @@
-# Purpose: Generate a structured AI blog post draft using DeepSeek API.
+﻿# Purpose: Generate a structured AI blog post draft using DeepSeek API.
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Final
 
-import requests
-from dotenv import load_dotenv
-
 from build_context import ContextBuildError, build_system_context
+from lib.ai_defaults import (
+    DEEPSEEK_DEFAULT_MODEL,
+    HUMAN_IDENTITY_CLAIM_MARKERS,
+    POST_DEFAULT_MAX_TOKENS,
+    POST_DEFAULT_TEMPERATURE,
+    POST_REQUEST_TIMEOUT_SECONDS,
+)
+from lib.deepseek_client import (
+    call_deepseek_chat_completion as call_deepseek_chat_completion_impl,
+    load_deepseek_api_key,
+)
+from lib.paths import AI_CONTEXT_DIR
 
 
-ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
-DEFAULT_BRIEF_PATH: Final[Path] = ROOT_DIR / "ai_context" / "ai_blog_brief.md"
+DEFAULT_BRIEF_PATH: Final[Path] = AI_CONTEXT_DIR / "ai_blog_brief.md"
 
-DEEPSEEK_API_URL: Final[str] = "https://api.deepseek.com/chat/completions"
-DEFAULT_MODEL: Final[str] = "deepseek-chat"
-DEFAULT_TEMPERATURE: Final[float] = 0.8
-DEFAULT_MAX_TOKENS: Final[int] = 2200
-REQUEST_TIMEOUT_SECONDS: Final[int] = 90
+DEFAULT_MODEL: Final[str] = DEEPSEEK_DEFAULT_MODEL
+DEFAULT_TEMPERATURE: Final[float] = POST_DEFAULT_TEMPERATURE
+DEFAULT_MAX_TOKENS: Final[int] = POST_DEFAULT_MAX_TOKENS
 DEFAULT_TARGET_ACCOUNT: Final[str] = "dplvoah"
 
 JSON_BLOCK_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"```(?:json)?\s*(\{.*\})\s*```",
     re.DOTALL | re.IGNORECASE,
 )
-HUMAN_IDENTITY_CLAIM_MARKERS: Final[list[str]] = [
-    "作为人类",
-    "身为人类",
-    "我作为人类",
-    "我们人类",
-    "as a human",
-    "as humans",
-    "i am human",
-    "i'm human",
-    "we humans",
-]
 
 
 class AIPostGenerationError(Exception):
@@ -67,15 +61,7 @@ def load_api_key() -> str:
     Raises:
         AIPostGenerationError: If API key is missing.
     """
-    load_dotenv()
-
-    api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
-    if not api_key:
-        raise AIPostGenerationError(
-            "Missing DEEPSEEK_API_KEY. Set it in environment or .env file."
-        )
-
-    return api_key
+    return load_deepseek_api_key(error_cls=AIPostGenerationError)
 
 
 def read_optional_brief(brief_path: Path) -> str:
@@ -190,40 +176,16 @@ def call_deepseek_chat_completion(
     Raises:
         AIPostGenerationError: If request fails or response is invalid.
     """
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_context},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream": False,
-    }
-
-    try:
-        response = requests.post(
-            DEEPSEEK_API_URL,
-            headers=headers,
-            json=payload,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-    except requests.RequestException as exc:
-        raise AIPostGenerationError(f"DeepSeek request failed: {exc}") from exc
-
-    if response.status_code != 200:
-        raise AIPostGenerationError(
-            f"DeepSeek API returned {response.status_code}: {response.text}"
-        )
-
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise AIPostGenerationError("Failed to decode DeepSeek JSON response.") from exc
+    return call_deepseek_chat_completion_impl(
+        api_key=api_key,
+        system_context=system_context,
+        user_prompt=user_prompt,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout_seconds=POST_REQUEST_TIMEOUT_SECONDS,
+        error_cls=AIPostGenerationError,
+    )
 
 
 def extract_response_text(response_data: dict[str, Any]) -> str:

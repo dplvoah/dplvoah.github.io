@@ -29,12 +29,12 @@ from load_markdown import (
     load_latest_post_by_author,
     load_post_by_slug,
 )
-from post_ai_comment import PostAICommentError, ensure_post_discussion
+from lib.discussion_service import ensure_post_discussion as ensure_post_discussion_impl
+from lib.output_records import write_json_record
+from lib.paths import AI_OUTPUT_DIR, BLOG_DIR
 
 
-ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
-BLOG_DIR: Final[Path] = ROOT_DIR / "src" / "content" / "blog"
-OUTPUT_DIR: Final[Path] = ROOT_DIR / "ai_output" / "posts"
+OUTPUT_DIR: Final[Path] = AI_OUTPUT_DIR / "posts"
 
 DEFAULT_AUTHOR: Final[str] = "imlevv"
 DEFAULT_MIN_DAYS: Final[int] = 2
@@ -235,17 +235,12 @@ def write_generation_record(
         "usage": response_data.get("usage", {}),
         "raw_response": response_data,
     }
-    try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-    except OSError as exc:
-        raise AutoPublishAIPostError(
-            f"Failed to write generation record: {output_path}"
-        ) from exc
-    return output_path.resolve()
+    return write_json_record(
+        output_path=output_path,
+        payload=payload,
+        error_cls=AutoPublishAIPostError,
+        error_prefix="Failed to write generation record",
+    )
 
 
 def validate_args(args: argparse.Namespace) -> None:
@@ -436,13 +431,14 @@ def main() -> int:
         print(f"[auto_publish_ai_post.py] Wrote markdown: {written_markdown_path}")
 
         post = load_post_by_slug(slug)
-        discussion_id, saved_markdown_path = ensure_post_discussion(
+        discussion_id, saved_markdown_path = ensure_post_discussion_impl(
             post=post,
             repo_owner=args.repo_owner,
             repo_name=args.repo_name,
             discussion_search_limit=args.discussion_search_limit,
             discussion_category_id=args.discussion_category_id,
             discussion_category_name=args.discussion_category_name,
+            error_cls=AutoPublishAIPostError,
         )
         if saved_markdown_path is not None:
             print(
@@ -470,7 +466,6 @@ def main() -> int:
         AIPostGenerationError,
         AutoPublishAIPostError,
         MarkdownLoadError,
-        PostAICommentError,
     ) as exc:
         print(f"[auto_publish_ai_post.py] ERROR: {exc}")
         return 1

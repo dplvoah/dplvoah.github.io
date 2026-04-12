@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 from pathlib import Path
 from typing import Any, Final
 
@@ -23,15 +22,25 @@ from generate_ai_comment import (
     extract_comment_text,
     load_api_key,
 )
+from lib.ai_defaults import (
+    COMMENT_DEFAULT_MAX_TOKENS,
+    COMMENT_DEFAULT_TEMPERATURE,
+    DEEPSEEK_DEFAULT_MODEL,
+)
+from lib.discussion_service import (
+    ensure_post_discussion as ensure_post_discussion_impl,
+    persist_discussion_id_to_frontmatter as persist_discussion_id_to_frontmatter_impl,
+    resolve_discussion_id as resolve_discussion_id_impl,
+    resolve_repo_for_discussion_lookup as resolve_repo_for_discussion_lookup_impl,
+)
+from lib.output_records import write_json_record
+from lib.paths import AI_OUTPUT_DIR
 from github_discussions import (
     GitHubDiscussionError,
     add_discussion_comment,
-    create_discussion,
     delete_discussion_comment,
-    find_discussion_by_title,
     list_discussion_comments,
     load_github_token,
-    update_discussion_title,
 )
 from load_markdown import BlogPost, MarkdownLoadError, load_post_by_slug
 from memory_access import (
@@ -42,12 +51,7 @@ from memory_access import (
 from memory_runtime import MemoryRuntimeError, record_interaction_event
 
 
-ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
-OUTPUT_DIR: Final[Path] = ROOT_DIR / "ai_output" / "comments"
-FRONTMATTER_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"^---\r?\n(.*?)\r?\n---(\r?\n?.*)$",
-    re.DOTALL,
-)
+OUTPUT_DIR: Final[Path] = AI_OUTPUT_DIR / "comments"
 
 
 class PostAICommentError(Exception):
@@ -110,32 +114,11 @@ def resolve_repo_for_discussion_lookup(
     Raises:
         PostAICommentError: If repo info is unavailable or invalid.
     """
-    owner = repo_owner.strip()
-    name = repo_name.strip()
-    if owner and name:
-        return owner, name
-
-    if owner or name:
-        raise PostAICommentError(
-            "Both --repo-owner and --repo-name are required together."
-        )
-
-    github_repository = os.getenv("GITHUB_REPOSITORY", "").strip()
-    if "/" not in github_repository:
-        raise PostAICommentError(
-            "Missing repository info. Set --repo-owner/--repo-name, "
-            "or provide GITHUB_REPOSITORY=owner/repo."
-        )
-
-    env_owner, env_repo = github_repository.split("/", 1)
-    env_owner = env_owner.strip()
-    env_repo = env_repo.strip()
-    if not env_owner or not env_repo:
-        raise PostAICommentError(
-            f"Invalid GITHUB_REPOSITORY value: {github_repository}"
-        )
-
-    return env_owner, env_repo
+    return resolve_repo_for_discussion_lookup_impl(
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+        error_cls=PostAICommentError,
+    )
 
 
 def resolve_discussion_id(
@@ -166,125 +149,16 @@ def resolve_discussion_id(
     Raises:
         PostAICommentError: If discussion cannot be resolved safely.
     """
-    configured_discussion_id = post.discussion_id.strip()
-    if configured_discussion_id:
-        return configured_discussion_id
-
-    owner, name = resolve_repo_for_discussion_lookup(
+    return resolve_discussion_id_impl(
+        post=post,
+        github_token=github_token,
         repo_owner=repo_owner,
         repo_name=repo_name,
+        discussion_search_limit=discussion_search_limit,
+        discussion_category_id=discussion_category_id,
+        discussion_category_name=discussion_category_name,
+        error_cls=PostAICommentError,
     )
-
-    if discussion_search_limit <= 0:
-        raise PostAICommentError("--discussion-search-limit must be greater than 0.")
-
-    # Keep discussion title aligned with giscus mapping=pathname.
-    # Existing discussions in this repo use title format: blog/<slug>/
-    canonical_mapping_key = f"blog/{post.slug}/"
-
-    def find_by_title(title_text: str) -> list[dict[str, Any]]:
-        try:
-            return find_discussion_by_title(
-                token=github_token,
-                owner=owner,
-                repo=name,
-                title=title_text,
-                limit=discussion_search_limit,
-            )
-        except GitHubDiscussionError as exc:
-            raise PostAICommentError(
-                f"Failed to look up discussion by title '{title_text}': {exc}"
-            ) from exc
-
-    matches = find_by_title(canonical_mapping_key)
-
-    if not matches:
-        legacy_title_matches = find_by_title(post.title)
-        if len(legacy_title_matches) > 1:
-            legacy_candidates = ", ".join(
-                f"{item.get('id', '')}:{item.get('title', '')}"
-                for item in legacy_title_matches[:5]
-            )
-            raise PostAICommentError(
-                f"Multiple legacy discussions match title '{post.title}'. "
-                f"Set discussionId in frontmatter to disambiguate. "
-                f"Candidates: {legacy_candidates}"
-            )
-        if len(legacy_title_matches) == 1:
-            legacy_discussion = legacy_title_matches[0]
-            legacy_discussion_id = str(legacy_discussion.get("id", "")).strip()
-            if not legacy_discussion_id:
-                raise PostAICommentError(
-                    f"Found legacy discussion for '{post.title}', but ID is empty."
-                )
-            try:
-                updated_discussion = update_discussion_title(
-                    token=github_token,
-                    discussion_id=legacy_discussion_id,
-                    title=canonical_mapping_key,
-                )
-            except GitHubDiscussionError as exc:
-                raise PostAICommentError(
-                    f"Failed to rename legacy discussion '{post.title}' "
-                    f"to '{canonical_mapping_key}': {exc}"
-                ) from exc
-            print(
-                "[post_ai_comment.py] Renamed legacy discussion title to pathname key: "
-                f"{updated_discussion.get('url', '')}"
-            )
-            return legacy_discussion_id
-
-    if not matches:
-        discussion_body = (
-            f"Auto-created discussion for blog post **{post.title}**.\n\n"
-            f"- Pathname key: `{canonical_mapping_key}`\n"
-            f"- Slug: `{post.slug}`\n"
-            f"- Date: `{post.date}`\n\n"
-            f"{post.description}"
-        )
-        try:
-            created_discussion = create_discussion(
-                token=github_token,
-                owner=owner,
-                repo=name,
-                title=canonical_mapping_key,
-                body=discussion_body,
-                category_id=discussion_category_id,
-                category_name=discussion_category_name,
-            )
-        except GitHubDiscussionError as exc:
-            raise PostAICommentError(
-                f"Post '{post.slug}' has no discussionId, no matching discussion by canonical key, "
-                f"and auto-create failed: {exc}"
-            ) from exc
-
-        created_discussion_id = str(created_discussion.get("id", "")).strip()
-        if not created_discussion_id:
-            raise PostAICommentError(
-                f"Discussion auto-created for post '{post.slug}', but returned ID is empty."
-            )
-        print(
-            "[post_ai_comment.py] Created discussion automatically: "
-            f"{created_discussion.get('url', '')}"
-        )
-        return created_discussion_id
-
-    if len(matches) > 1:
-        candidates = ", ".join(
-            f"{item.get('id', '')}:{item.get('title', '')}" for item in matches[:5]
-        )
-        raise PostAICommentError(
-            f"Multiple discussions match canonical key '{canonical_mapping_key}'. "
-            f"Set discussionId in frontmatter to disambiguate. Candidates: {candidates}"
-        )
-
-    resolved_discussion_id = str(matches[0].get("id", "")).strip()
-    if not resolved_discussion_id:
-        raise PostAICommentError(
-            f"Found discussion for title '{post.title}', but ID is empty."
-        )
-
-    return resolved_discussion_id
 
 
 def persist_discussion_id_to_frontmatter(
@@ -305,43 +179,11 @@ def persist_discussion_id_to_frontmatter(
     Raises:
         PostAICommentError: If markdown cannot be updated safely.
     """
-    if post.discussion_id.strip():
-        return None
-
-    markdown_path = Path(post.source_path)
-    try:
-        raw_text = markdown_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise PostAICommentError(
-            f"Failed to read markdown for discussionId backfill: {markdown_path}"
-        ) from exc
-
-    match = FRONTMATTER_PATTERN.match(raw_text)
-    if not match:
-        raise PostAICommentError(
-            f"Cannot backfill discussionId because frontmatter format is invalid: {markdown_path}"
-        )
-
-    frontmatter_text, remainder = match.groups()
-    if re.search(r"(?m)^\s*discussionId\s*:", frontmatter_text):
-        return None
-
-    newline = "\r\n" if "\r\n" in raw_text else "\n"
-    updated_frontmatter = (
-        frontmatter_text.rstrip()
-        + newline
-        + f'discussionId: "{discussion_id}"'
+    return persist_discussion_id_to_frontmatter_impl(
+        post=post,
+        discussion_id=discussion_id,
+        error_cls=PostAICommentError,
     )
-    updated_text = f"---{newline}{updated_frontmatter}{newline}---{remainder}"
-
-    try:
-        markdown_path.write_text(updated_text, encoding="utf-8")
-    except OSError as exc:
-        raise PostAICommentError(
-            f"Failed to backfill discussionId to markdown: {markdown_path}"
-        ) from exc
-
-    return markdown_path.resolve()
 
 
 def ensure_post_discussion(
@@ -372,21 +214,16 @@ def ensure_post_discussion(
     Raises:
         PostAICommentError: If discussion cannot be resolved or backfilled.
     """
-    token = github_token or load_github_token()
-    discussion_id = resolve_discussion_id(
+    return ensure_post_discussion_impl(
         post=post,
-        github_token=token,
         repo_owner=repo_owner,
         repo_name=repo_name,
         discussion_search_limit=discussion_search_limit,
         discussion_category_id=discussion_category_id,
         discussion_category_name=discussion_category_name,
+        error_cls=PostAICommentError,
+        github_token=github_token,
     )
-    saved_markdown_path = persist_discussion_id_to_frontmatter(
-        post=post,
-        discussion_id=discussion_id,
-    )
-    return discussion_id, saved_markdown_path
 
 
 def generate_comment_for_post(
@@ -542,18 +379,12 @@ def write_generation_record(output_data: dict[str, Any], slug: str) -> Path:
     """
     output_path = OUTPUT_DIR / f"{slug}.json"
 
-    try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(output_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-    except OSError as exc:
-        raise PostAICommentError(
-            f"Failed to write generation record: {output_path}"
-        ) from exc
-
-    return output_path.resolve()
+    return write_json_record(
+        output_path=output_path,
+        payload=output_data,
+        error_cls=PostAICommentError,
+        error_prefix="Failed to write generation record",
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -574,19 +405,19 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="deepseek-chat",
+        default=DEEPSEEK_DEFAULT_MODEL,
         type=str,
         help="DeepSeek model name.",
     )
     parser.add_argument(
         "--temperature",
-        default=0.9,
+        default=COMMENT_DEFAULT_TEMPERATURE,
         type=float,
         help="Sampling temperature.",
     )
     parser.add_argument(
         "--max-tokens",
-        default=800,
+        default=COMMENT_DEFAULT_MAX_TOKENS,
         type=int,
         help="Maximum output tokens.",
     )

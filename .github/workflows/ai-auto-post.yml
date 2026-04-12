@@ -1,5 +1,9 @@
 name: AI Auto Publish Post
 
+env:
+  GISCUS_CATEGORY: "Comments"
+  GISCUS_CATEGORY_ID: "DIC_kwDOR8zCy84C6Xkq"
+
 on:
   schedule:
     - cron: "0 3 * * *"
@@ -25,23 +29,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Set up Python and dependencies
+        uses: ./.github/actions/setup-python-deps
 
       - name: Auto publish AI post
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           AI_GITHUB_TOKEN: ${{ secrets.AI_GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GISCUS_CATEGORY: "Comments"
-          GISCUS_CATEGORY_ID: "DIC_kwDOR8zCy84C6Xkq"
           FORCE_PUBLISH: ${{ github.event.inputs.force_publish || 'false' }}
         run: |
           force_flag=""

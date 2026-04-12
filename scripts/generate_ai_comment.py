@@ -1,4 +1,4 @@
-# Print ai_comment in terminal only ```python scripts/generate_ai_comment.py --slug first-post```
+﻿# Print ai_comment in terminal only ```python scripts/generate_ai_comment.py --slug first-post```
 
 # Print ai_comment and write to file ```python scripts/generate_ai_comment.py --slug first-post --write-file```
 
@@ -7,38 +7,31 @@
 from __future__ import annotations
 
 import argparse
-import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final
 
-import requests
-from dotenv import load_dotenv
-
 from build_context import ContextBuildError, build_system_context
+from lib.ai_defaults import (
+    COMMENT_DEFAULT_MAX_TOKENS,
+    COMMENT_DEFAULT_TEMPERATURE,
+    COMMENT_REQUEST_TIMEOUT_SECONDS,
+    DEEPSEEK_DEFAULT_MODEL,
+    HUMAN_IDENTITY_CLAIM_MARKERS,
+)
+from lib.deepseek_client import (
+    call_deepseek_chat_completion as call_deepseek_chat_completion_impl,
+    load_deepseek_api_key,
+)
+from lib.output_records import write_json_record
+from lib.paths import AI_OUTPUT_DIR
 from load_markdown import BlogPost, MarkdownLoadError, load_post_by_slug
 
 
-ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
-OUTPUT_DIR: Final[Path] = ROOT_DIR / "ai_output" / "comments"
-
-DEEPSEEK_API_URL: Final[str] = "https://api.deepseek.com/chat/completions"
-DEFAULT_MODEL: Final[str] = "deepseek-chat"
-DEFAULT_TEMPERATURE: Final[float] = 0.9
-DEFAULT_MAX_TOKENS: Final[int] = 800
-REQUEST_TIMEOUT_SECONDS: Final[int] = 60
-HUMAN_IDENTITY_CLAIM_MARKERS: Final[list[str]] = [
-    "作为人类",
-    "身为人类",
-    "我作为人类",
-    "我们人类",
-    "as a human",
-    "as humans",
-    "i am human",
-    "i'm human",
-    "we humans",
-]
+OUTPUT_DIR: Final[Path] = AI_OUTPUT_DIR / "comments"
+DEFAULT_MODEL: Final[str] = DEEPSEEK_DEFAULT_MODEL
+DEFAULT_TEMPERATURE: Final[float] = COMMENT_DEFAULT_TEMPERATURE
+DEFAULT_MAX_TOKENS: Final[int] = COMMENT_DEFAULT_MAX_TOKENS
 
 
 class AICommentGenerationError(Exception):
@@ -55,15 +48,7 @@ def load_api_key() -> str:
     Raises:
         AICommentGenerationError: If API key is missing.
     """
-    load_dotenv()
-
-    api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
-    if not api_key:
-        raise AICommentGenerationError(
-            "Missing DEEPSEEK_API_KEY. Set it in environment or .env file."
-        )
-
-    return api_key
+    return load_deepseek_api_key(error_cls=AICommentGenerationError)
 
 
 def build_user_prompt(post: BlogPost) -> str:
@@ -143,43 +128,16 @@ def call_deepseek_chat_completion(
     Raises:
         AICommentGenerationError: If request fails or response is invalid.
     """
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_context},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream": False,
-    }
-
-    try:
-        response = requests.post(
-            DEEPSEEK_API_URL,
-            headers=headers,
-            json=payload,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-    except requests.RequestException as exc:
-        raise AICommentGenerationError(f"DeepSeek request failed: {exc}") from exc
-
-    if response.status_code != 200:
-        raise AICommentGenerationError(
-            f"DeepSeek API returned {response.status_code}: {response.text}"
-        )
-
-    try:
-        data = response.json()
-    except ValueError as exc:
-        raise AICommentGenerationError("Failed to decode DeepSeek JSON response.") from exc
-
-    return data
+    return call_deepseek_chat_completion_impl(
+        api_key=api_key,
+        system_context=system_context,
+        user_prompt=user_prompt,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout_seconds=COMMENT_REQUEST_TIMEOUT_SECONDS,
+        error_cls=AICommentGenerationError,
+    )
 
 
 def extract_comment_text(response_data: dict[str, Any]) -> str:
@@ -258,16 +216,12 @@ def write_output_json(output_data: dict[str, Any], output_path: Path) -> Path:
     Raises:
         AICommentGenerationError: If write fails.
     """
-    try:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(output_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-    except OSError as exc:
-        raise AICommentGenerationError(f"Failed to write output file: {output_path}") from exc
-
-    return output_path.resolve()
+    return write_json_record(
+        output_path=output_path,
+        payload=output_data,
+        error_cls=AICommentGenerationError,
+        error_prefix="Failed to write output file",
+    )
 
 
 def parse_args() -> argparse.Namespace:

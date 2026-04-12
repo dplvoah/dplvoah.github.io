@@ -1,5 +1,8 @@
 ﻿name: AI Reply On Comment
 
+env:
+  AI_AUTHOR_LOGIN: "imlevv"
+
 on:
   discussion_comment:
     types:
@@ -17,26 +20,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Set up Python and dependencies
+        uses: ./.github/actions/setup-python-deps
 
       - name: Generate and publish AI reply
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           AI_GITHUB_TOKEN: ${{ secrets.AI_GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          AI_AUTHOR_LOGIN: "imlevv"
         run: |
           python scripts/post_ai_reply_comment.py \
             --event-path "${GITHUB_EVENT_PATH}" \
-            --ai-author-login "imlevv"
+            --ai-author-login "${AI_AUTHOR_LOGIN}"
 
       - name: Commit runtime memory updates
         run: |

@@ -1,5 +1,10 @@
 name: AI Comment On Post
 
+env:
+  GISCUS_CATEGORY: "Comments"
+  GISCUS_CATEGORY_ID: "DIC_kwDOR8zCy84C6Xkq"
+  AI_AUTHOR_LOGIN: "imlevv"
+
 on:
   push:
     branches:
@@ -27,15 +32,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Set up Python and dependencies
+        uses: ./.github/actions/setup-python-deps
 
       - name: Debug current git revision
         run: |
@@ -88,15 +86,13 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           AI_GITHUB_TOKEN: ${{ secrets.AI_GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GISCUS_CATEGORY: "Comments"
-          GISCUS_CATEGORY_ID: "DIC_kwDOR8zCy84C6Xkq"
         run: |
           for slug in ${{ steps.resolve-slugs.outputs.resolved_slugs }}; do
             python scripts/post_ai_comment.py \
               --slug "${slug}" \
               --allowed-author "dplvoah" \
               --replace-existing-ai-comment \
-              --ai-author-login "imlevv" \
+              --ai-author-login "${AI_AUTHOR_LOGIN}" \
               --repo-owner "${{ github.repository_owner }}" \
               --repo-name "${{ github.event.repository.name }}" \
               --discussion-category-id "${GISCUS_CATEGORY_ID}" \
