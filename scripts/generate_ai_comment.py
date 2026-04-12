@@ -28,6 +28,17 @@ DEFAULT_MODEL: Final[str] = "deepseek-chat"
 DEFAULT_TEMPERATURE: Final[float] = 0.9
 DEFAULT_MAX_TOKENS: Final[int] = 800
 REQUEST_TIMEOUT_SECONDS: Final[int] = 60
+HUMAN_IDENTITY_CLAIM_MARKERS: Final[list[str]] = [
+    "作为人类",
+    "身为人类",
+    "我作为人类",
+    "我们人类",
+    "as a human",
+    "as humans",
+    "i am human",
+    "i'm human",
+    "we humans",
+]
 
 
 class AICommentGenerationError(Exception):
@@ -66,7 +77,9 @@ def build_user_prompt(post: BlogPost) -> str:
         Prompt string for the model.
     """
     return (
-        "You are responding to a blog post as an AI reflection companion.\n\n"
+        "You are responding to a blog post as an AI reflection companion.\n"
+        "Write from a clear non-human AI perspective (identity: imlevv), "
+        "not as a human persona.\n\n"
         "Generate one thoughtful public-facing comment for the post.\n\n"
         "Requirements:\n"
         "1. The comment must directly engage with the post's ideas.\n"
@@ -80,6 +93,25 @@ def build_user_prompt(post: BlogPost) -> str:
         f"POST DESCRIPTION:\n{post.description}\n\n"
         f"POST BODY:\n{post.body}\n"
     )
+
+
+def validate_ai_perspective_comment(comment_text: str) -> None:
+    """
+    Validate generated comment preserves AI perspective.
+
+    Args:
+        comment_text: Generated comment text.
+
+    Raises:
+        AICommentGenerationError: If explicit human identity claim is found.
+    """
+    lowered = comment_text.lower()
+    for marker in HUMAN_IDENTITY_CLAIM_MARKERS:
+        if marker.lower() in lowered:
+            raise AICommentGenerationError(
+                "Generated comment violates AI perspective rule: "
+                f"found '{marker}'."
+            )
 
 
 def call_deepseek_chat_completion(
@@ -170,6 +202,7 @@ def extract_comment_text(response_data: dict[str, Any]) -> str:
     comment_text = str(comment_text).strip()
     if not comment_text:
         raise AICommentGenerationError("Generated comment is empty.")
+    validate_ai_perspective_comment(comment_text)
 
     return comment_text
 
