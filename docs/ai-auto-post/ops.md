@@ -1,4 +1,4 @@
-# AI 自动发文运行配置（Phase 2）
+# AI 自动发文与自动回复运行配置（Phase 2+3）
 
 ## 0. 账号映射
 - 用户 GitHub 昵称：`dplvoah`
@@ -13,6 +13,9 @@
 - 至少需要：
   - `contents: write`（提交 AI 文章与回填字段）
   - `discussions: write`（创建/写入 Discussion）
+- 自动回复评论工作流（`ai-reply-on-comment.yml`）最小权限：
+  - `contents: read`
+  - `discussions: write`
 
 ## 3. 运行环境
 - Python 3.11+
@@ -33,3 +36,4 @@
 - 生成失败：记录日志并等待下次定时任务。
 - 推送冲突：拉取后重试一次，仍失败则任务失败并告警（日志可追踪）。
 - Discussion 创建失败：任务失败，不发布半成品状态。
+- 评论回复失败：本次事件任务失败并记录日志，不进行重复自动补发。

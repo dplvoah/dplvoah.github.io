@@ -21,6 +21,7 @@ GITHUB_GRAPHQL_API_URL: Final[str] = "https://api.github.com/graphql"
 REQUEST_TIMEOUT_SECONDS: Final[int] = 60
 DEFAULT_LIST_LIMIT: Final[int] = 20
 DEFAULT_DISCUSSION_COMMENT_LIMIT: Final[int] = 100
+DEFAULT_DISCUSSION_REPLY_LIMIT: Final[int] = 50
 
 
 class GitHubDiscussionError(Exception):
@@ -246,6 +247,7 @@ def add_discussion_comment(
     token: str,
     discussion_id: str,
     body: str,
+    reply_to_id: str = "",
 ) -> dict[str, Any]:
     """
     Add a comment to a GitHub Discussion.
@@ -254,6 +256,7 @@ def add_discussion_comment(
         token: GitHub authentication token.
         discussion_id: GitHub Discussion node ID.
         body: Comment body text.
+        reply_to_id: Optional parent discussion comment node ID.
 
     Returns:
         Parsed comment data.
@@ -269,9 +272,20 @@ def add_discussion_comment(
     if not comment_body:
         raise GitHubDiscussionError("Discussion comment body cannot be empty.")
 
+    normalized_reply_to_id = reply_to_id.strip()
     mutation = """
-    mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
-      addDiscussionComment(input: {discussionId: $discussionId, body: $body}) {
+    mutation AddDiscussionComment(
+      $discussionId: ID!,
+      $body: String!,
+      $replyToId: ID
+    ) {
+      addDiscussionComment(
+        input: {
+          discussionId: $discussionId,
+          body: $body,
+          replyToId: $replyToId
+        }
+      ) {
         comment {
           id
           url
@@ -291,6 +305,7 @@ def add_discussion_comment(
     variables = {
         "discussionId": normalized_discussion_id,
         "body": comment_body,
+        "replyToId": normalized_reply_to_id or None,
     }
 
     data = execute_github_graphql_query(
@@ -307,6 +322,200 @@ def add_discussion_comment(
         ) from exc
 
     return comment
+
+
+def get_discussion_id_by_number(
+    *,
+    token: str,
+    owner: str,
+    repo: str,
+    number: int,
+) -> dict[str, Any]:
+    """
+    Resolve discussion node ID by repository owner/name and discussion number.
+
+    Args:
+        token: GitHub authentication token.
+        owner: Repository owner.
+        repo: Repository name.
+        number: Discussion number.
+
+    Returns:
+        Normalized discussion payload with node ID and metadata.
+
+    Raises:
+        GitHubDiscussionError: If inputs are invalid or discussion is not found.
+    """
+    if not owner.strip() or not repo.strip():
+        raise GitHubDiscussionError("Owner and repo are required.")
+    if number <= 0:
+        raise GitHubDiscussionError("Discussion number must be greater than 0.")
+
+    query = """
+    query DiscussionByNumber($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          id
+          number
+          title
+          url
+        }
+      }
+    }
+    """
+    variables = {
+        "owner": owner.strip(),
+        "repo": repo.strip(),
+        "number": number,
+    }
+    data = execute_github_graphql_query(
+        token=token,
+        query=query,
+        variables=variables,
+    )
+
+    try:
+        discussion = data["data"]["repository"]["discussion"]
+    except (KeyError, TypeError) as exc:
+        raise GitHubDiscussionError(
+            "GitHub response missing repository.discussion fields."
+        ) from exc
+
+    if not discussion:
+        raise GitHubDiscussionError(
+            f"Discussion not found: {owner.strip()}/{repo.strip()}#{number}"
+        )
+
+    discussion_id = str(discussion.get("id", "")).strip()
+    if not discussion_id:
+        raise GitHubDiscussionError(
+            f"Discussion ID is empty for {owner.strip()}/{repo.strip()}#{number}"
+        )
+
+    return {
+        "id": discussion_id,
+        "number": discussion.get("number"),
+        "title": str(discussion.get("title", "")).strip(),
+        "url": str(discussion.get("url", "")).strip(),
+    }
+
+
+def get_discussion_comment(
+    *,
+    token: str,
+    comment_id: str,
+    reply_limit: int = DEFAULT_DISCUSSION_REPLY_LIMIT,
+) -> dict[str, Any]:
+    """
+    Get one discussion comment and its current replies by comment node ID.
+
+    Args:
+        token: GitHub authentication token.
+        comment_id: Discussion comment node ID.
+        reply_limit: Max replies to fetch.
+
+    Returns:
+        Normalized discussion comment payload.
+
+    Raises:
+        GitHubDiscussionError: If lookup fails or comment is inaccessible.
+    """
+    normalized_comment_id = comment_id.strip()
+    if not normalized_comment_id:
+        raise GitHubDiscussionError("Comment ID cannot be empty.")
+    if reply_limit <= 0:
+        raise GitHubDiscussionError("Reply limit must be greater than 0.")
+
+    query = """
+    query DiscussionCommentById($commentId: ID!, $replyLimit: Int!) {
+      node(id: $commentId) {
+        ... on DiscussionComment {
+          id
+          body
+          createdAt
+          author {
+            login
+          }
+          discussion {
+            id
+            number
+            title
+          }
+          replies(first: $replyLimit) {
+            nodes {
+              id
+              databaseId
+              url
+              body
+              createdAt
+              author {
+                login
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    variables = {
+        "commentId": normalized_comment_id,
+        "replyLimit": reply_limit,
+    }
+    data = execute_github_graphql_query(
+        token=token,
+        query=query,
+        variables=variables,
+    )
+
+    try:
+        node = data["data"]["node"]
+    except (KeyError, TypeError) as exc:
+        raise GitHubDiscussionError("GitHub response missing node payload.") from exc
+
+    if not node:
+        raise GitHubDiscussionError(
+            f"Discussion comment not found or inaccessible: {normalized_comment_id}"
+        )
+
+    try:
+        discussion = node["discussion"]
+        reply_nodes = (node.get("replies") or {}).get("nodes") or []
+    except (KeyError, TypeError) as exc:
+        raise GitHubDiscussionError(
+            "GitHub response missing discussion comment fields."
+        ) from exc
+
+    discussion_id = str((discussion or {}).get("id", "")).strip()
+    if not discussion_id:
+        raise GitHubDiscussionError(
+            "Discussion ID missing from discussion comment payload."
+        )
+
+    replies: list[dict[str, Any]] = []
+    for item in reply_nodes:
+        if not item:
+            continue
+        replies.append(
+            {
+                "id": str(item.get("id", "")).strip(),
+                "body": str(item.get("body", "")).strip(),
+                "createdAt": str(item.get("createdAt", "")).strip(),
+                "author_login": str(
+                    (item.get("author") or {}).get("login", "")
+                ).strip(),
+            }
+        )
+
+    return {
+        "id": str(node.get("id", "")).strip(),
+        "body": str(node.get("body", "")).strip(),
+        "createdAt": str(node.get("createdAt", "")).strip(),
+        "author_login": str((node.get("author") or {}).get("login", "")).strip(),
+        "discussion_id": discussion_id,
+        "discussion_number": discussion.get("number"),
+        "discussion_title": str(discussion.get("title", "")).strip(),
+        "replies": replies,
+    }
 
 
 def list_discussion_comments(
@@ -395,6 +604,8 @@ def list_discussion_comments(
             comments.append(
                 {
                     "id": str(item.get("id", "")).strip(),
+                    "database_id": item.get("databaseId"),
+                    "url": str(item.get("url", "")).strip(),
                     "body": str(item.get("body", "")).strip(),
                     "createdAt": str(item.get("createdAt", "")).strip(),
                     "author_login": str(
