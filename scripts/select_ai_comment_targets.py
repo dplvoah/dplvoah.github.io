@@ -16,6 +16,7 @@ import yaml
 
 ROOT_DIR: Final[Path] = Path(__file__).resolve().parent.parent
 BLOG_DIR: Final[Path] = ROOT_DIR / "src" / "content" / "blog"
+DEFAULT_COMMENT_RECORD_DIR: Final[Path] = ROOT_DIR / "ai_output" / "comments"
 FRONTMATTER_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"^---\r?\n(.*?)\r?\n---\r?\n?(.*)$",
     re.DOTALL,
@@ -175,6 +176,54 @@ def list_changed_slugs(event_name: str, before_sha: str, head_sha: str) -> list[
     return sorted(set(slugs))
 
 
+def list_all_blog_slugs() -> list[str]:
+    """List all markdown slugs in blog directory from working tree."""
+    if not BLOG_DIR.exists() or not BLOG_DIR.is_dir():
+        return []
+    return sorted(path.stem for path in BLOG_DIR.glob("*.md") if path.is_file())
+
+
+def select_unrecorded_slugs(
+    *,
+    allowed_author: str,
+    max_count: int,
+    record_dir: Path,
+) -> list[str]:
+    """
+    Select newest slugs missing local AI comment record files.
+
+    Args:
+        allowed_author: Required post author.
+        max_count: Maximum slugs to return.
+        record_dir: Directory containing comment generation records.
+
+    Returns:
+        Selected slugs in descending recency.
+    """
+    if max_count <= 0:
+        return []
+
+    candidates: list[tuple[str, str]] = []
+    for slug in list_all_blog_slugs():
+        snapshot = read_current_snapshot(slug)
+        if snapshot is None:
+            continue
+        if snapshot.author.strip() != allowed_author:
+            continue
+        if snapshot.draft:
+            continue
+
+        record_path = record_dir / f"{slug}.json"
+        if record_path.exists():
+            continue
+
+        # pub_date is expected to be ISO-like and sortable as text.
+        candidates.append((snapshot.pub_date.strip(), slug))
+
+    candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [slug for _, slug in candidates[:max_count]]
+
+
 def read_snapshot_from_ref(slug: str, ref: str) -> ParsedPostSnapshot | None:
     """
     Read post snapshot from a git ref.
@@ -293,6 +342,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--similarity-threshold", default=0.98, type=float)
     parser.add_argument("--char-delta-threshold", default=120, type=int)
     parser.add_argument(
+        "--include-unrecorded-if-empty",
+        action="store_true",
+        help=(
+            "When no changed slugs are selected on push events, "
+            "fallback to newest posts missing ai_output/comments/<slug>.json."
+        ),
+    )
+    parser.add_argument(
+        "--unrecorded-max-slugs",
+        default=1,
+        type=int,
+        help="Maximum fallback slugs selected by --include-unrecorded-if-empty.",
+    )
+    parser.add_argument(
+        "--comment-record-dir",
+        default=str(DEFAULT_COMMENT_RECORD_DIR),
+        type=str,
+        help="Directory containing AI comment generation records.",
+    )
+    parser.add_argument(
         "--slugs-only",
         action="store_true",
         help="Print only selected slugs as a space-separated string.",
@@ -366,6 +435,28 @@ def main() -> int:
             )
             if significant:
                 selected_slugs.append(slug)
+
+        if (
+            not selected_slugs
+            and args.include_unrecorded_if_empty
+            and not manual_slug
+            and args.event_name.strip() == "push"
+        ):
+            record_dir = Path(args.comment_record_dir).resolve()
+            fallback_slugs = select_unrecorded_slugs(
+                allowed_author=allowed_author,
+                max_count=max(1, int(args.unrecorded_max_slugs)),
+                record_dir=record_dir,
+            )
+            for slug in fallback_slugs:
+                selected_slugs.append(slug)
+                details.append(
+                    {
+                        "slug": slug,
+                        "selected": "true",
+                        "reason": "missing_comment_record_backfill",
+                    }
+                )
 
         selected_slugs = sorted(set(selected_slugs))
         if args.slugs_only:

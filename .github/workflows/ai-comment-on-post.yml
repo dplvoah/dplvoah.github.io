@@ -56,6 +56,9 @@ jobs:
             --allowed-author "dplvoah" \
             --similarity-threshold 0.98 \
             --char-delta-threshold 120 \
+            --include-unrecorded-if-empty \
+            --unrecorded-max-slugs 1 \
+            --comment-record-dir "ai_output/comments" \
             --slugs-only)
 
           echo "resolved_slugs=$slugs" >> "$GITHUB_OUTPUT"
@@ -103,7 +106,7 @@ jobs:
       - name: Commit discussionId backfill
         if: steps.resolve-slugs.outputs.has_slugs == 'true'
         run: |
-          if [ -z "$(git status --porcelain -- src/content/blog ai_context/recent_memory.md ai_context/memory/interaction_events.jsonl)" ]; then
+          if [ -z "$(git status --porcelain -- src/content/blog ai_context/recent_memory.md ai_context/memory/interaction_events.jsonl ai_output/comments)" ]; then
             echo "No discussionId/runtime-memory changes to commit."
             exit 0
           fi
@@ -114,6 +117,9 @@ jobs:
           git add ai_context/recent_memory.md
           if [ -f "ai_context/memory/interaction_events.jsonl" ]; then
             git add ai_context/memory/interaction_events.jsonl
+          fi
+          if [ -d "ai_output/comments" ]; then
+            git add ai_output/comments/*.json || true
           fi
           git commit -m "chore: backfill discussionId and refresh runtime memory [skip ai-comment]"
           git push
