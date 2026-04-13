@@ -1,0 +1,92 @@
+---
+interface Props {
+  title: string;
+  url: string;
+  description?: string;
+}
+
+const { title, url, description = "" } = Astro.props;
+const encodedTitle = encodeURIComponent(title);
+const encodedUrl = encodeURIComponent(url);
+const encodedDescription = encodeURIComponent(description);
+---
+
+<section class="share-section card">
+  <h2>分享文章 / Share This Post</h2>
+  <p>复制链接到微信，或一键分享到其他平台。</p>
+  <p>Copy the link for WeChat or share with one click on other platforms.</p>
+
+  <div class="share-actions">
+    <button type="button" class="share-action copy-action" data-copy-url={url}>
+      WeChat
+    </button>
+    <a
+      class="share-action"
+      href={`https://connect.qq.com/widget/shareqq/index.html?url=${encodedUrl}&title=${encodedTitle}&summary=${encodedDescription}`}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      QQ
+    </a>
+    <a
+      class="share-action"
+      href={`https://x.com/intent/post?text=${encodedTitle}&url=${encodedUrl}`}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      X
+    </a>
+    <a
+      class="share-action"
+      href={`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      Facebook
+    </a>
+  </div>
+
+  <p class="copy-feedback" aria-live="polite"></p>
+</section>
+
+<script is:inline>
+  const copyButtons = document.querySelectorAll(".copy-action");
+
+  async function copyToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    document.execCommand("copy");
+    textArea.remove();
+  }
+
+  copyButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const section = button.closest(".share-section");
+      const feedback = section?.querySelector(".copy-feedback");
+      const copyUrl = button.getAttribute("data-copy-url") ?? "";
+
+      try {
+        await copyToClipboard(copyUrl);
+        if (feedback) {
+          feedback.textContent =
+            "链接已复制，可直接粘贴到微信。Link copied for WeChat.";
+        }
+      } catch {
+        if (feedback) {
+          feedback.textContent =
+            "复制失败，请手动复制当前页面链接。Copy failed. Please copy the URL manually.";
+        }
+      }
+    });
+  });
+</script>

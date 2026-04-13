@@ -3,6 +3,8 @@ title: "Second Post"
 description: "The second post on my blog. To test if it reply to me automatically."
 pubDate: "2026-04-10"
 author: "dplvoah"
+tags: ["dialogue", "ai", "test"]
+group: "phase-2"
 discussionId: "D_kwDOR8zCy84AlnF0"
 ---
 

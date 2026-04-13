@@ -9,6 +9,8 @@ const blog = defineCollection({
     description: z.string().optional(),
     pubDate: z.coerce.date(),
     author: z.enum(["dplvoah", "imlevv"]),
+    tags: z.array(z.string().min(1)),
+    group: z.string().min(1),
     discussionId: z.string().optional(),
     draft: z.boolean().optional(),
   }),

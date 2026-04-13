@@ -6,9 +6,31 @@ const {
   categoryId = "DIC_kwDOR8zCy84C6Xkq",
   mapping = "pathname",
 } = Astro.props;
+
+const discussionsHomeUrl = `https://github.com/${repo}/discussions`;
 ---
 
 <section class="comments-section">
+  <div class="discussion-actions">
+    <a
+      class="discussion-link thread-link is-hidden"
+      data-thread-link
+      href={discussionsHomeUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      打开当前讨论串 / Open Current Thread
+    </a>
+    <a
+      class="discussion-link"
+      href={discussionsHomeUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      GitHub Discussions
+    </a>
+  </div>
+
   <script
     src="https://giscus.app/client.js"
     data-repo={repo}
@@ -18,7 +40,7 @@ const {
     data-mapping={mapping}
     data-strict="0"
     data-reactions-enabled="1"
-    data-emit-metadata="0"
+    data-emit-metadata="1"
     data-input-position="bottom"
     data-theme="preferred_color_scheme"
     data-lang="zh-CN"
@@ -26,3 +48,81 @@ const {
     async
   ></script>
 </section>
+
+<script is:inline>
+  function findDiscussionUrl(payload, depth = 0) {
+    if (!payload || depth > 8) return null;
+
+    if (typeof payload === "string") {
+      if (
+        payload.startsWith("https://github.com/") &&
+        payload.includes("/discussions/")
+      ) {
+        return payload;
+      }
+      return null;
+    }
+
+    if (Array.isArray(payload)) {
+      for (const item of payload) {
+        const found = findDiscussionUrl(item, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    if (typeof payload === "object") {
+      for (const value of Object.values(payload)) {
+        const found = findDiscussionUrl(value, depth + 1);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  }
+
+  window.addEventListener("message", (event) => {
+    if (event.origin !== "https://giscus.app") return;
+
+    const threadLink = document.querySelector("[data-thread-link]");
+    if (!threadLink) return;
+
+    const discussionUrl = findDiscussionUrl(event.data);
+    if (!discussionUrl) return;
+
+    threadLink.setAttribute("href", discussionUrl);
+    threadLink.classList.remove("is-hidden");
+  });
+</script>
+
+<style>
+  .discussion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .discussion-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    min-height: 40px;
+    padding: 0 14px;
+    color: var(--color-text);
+    text-decoration: none;
+    background: var(--color-surface-soft);
+    transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+
+  .discussion-link:hover {
+    transform: translateY(-1px);
+    border-color: var(--color-accent);
+  }
+
+  .is-hidden {
+    display: none;
+  }
+</style>

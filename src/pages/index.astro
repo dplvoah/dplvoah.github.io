@@ -1,52 +1,350 @@
-﻿---
+---
 import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 const posts = (await getCollection("blog")).sort(
   (a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime()
 );
+
+const authors = [...new Set(posts.map((post) => post.data.author))].sort();
+const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort();
+const groups = [...new Set(posts.map((post) => post.data.group))].sort();
 ---
 
 <BaseLayout title="dplvoah blog">
-  <h1>dplvoah blog</h1>
-  <p>My personal blog built with Astro.</p>
+  <section class="hero card">
+    <p class="eyebrow">dplvoah blog</p>
+    <h1>简洁、持续、可对话的个人博客 / Minimal and Conversational Blog</h1>
+    <p class="hero-text">
+      这里记录持续思考，也保留公开讨论。
+      This space is built for long-term thinking and open discussion.
+    </p>
+  </section>
 
-  <ul>
-    {posts.map((post) => (
+  <section class="links-section card">
+    <h2>Logo Links</h2>
+    <div class="logo-links">
+      <a href="https://github.com/dplvoah" target="_blank" rel="noreferrer noopener">
+        GitHub Profile
+      </a>
+      <a
+        href="https://github.com/dplvoah/dplvoah.github.io"
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        Blog Repo
+      </a>
+    </div>
+  </section>
+
+  <section class="contact-section card">
+    <h2>联系方式 / Contact</h2>
+    <ul>
       <li>
-        <a href={`/blog/${post.id}`}>{post.data.title}</a>
-        <div class="meta">
-          {post.data.pubDate.toLocaleDateString("en-US")}
+        Email 1:
+        <a href="mailto:imlevv@outlook.com">imlevv@outlook.com</a>
+      </li>
+      <li>
+        Email 2:
+        <a href="mailto:dplvoah@gmail.com">dplvoah@gmail.com</a>
+      </li>
+      <li>WeChat ID: <span class="wechat-id">hellolevv</span></li>
+    </ul>
+  </section>
+
+  <section class="filters card">
+    <h2>筛选文章 / Filter Posts</h2>
+    <div class="filters-grid">
+      <label>
+        <span>Author</span>
+        <select id="filter-author">
+          <option value="all">All</option>
+          {authors.map((author) => (
+            <option value={author}>{author}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Tag</span>
+        <select id="filter-tag">
+          <option value="all">All</option>
+          {tags.map((tag) => (
+            <option value={tag}>{tag}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Group</span>
+        <select id="filter-group">
+          <option value="all">All</option>
+          {groups.map((group) => (
+            <option value={group}>{group}</option>
+          ))}
+        </select>
+      </label>
+    </div>
+    <p class="result-count">
+      匹配文章 / Matched posts: <strong id="result-count">{posts.length}</strong>
+    </p>
+  </section>
+
+  <ul class="post-list">
+    {posts.map((post, index) => (
+      <li
+        class="card post-item"
+        data-post-item
+        data-author={post.data.author}
+        data-tags={post.data.tags.join(",")}
+        data-group={post.data.group}
+        style={`--delay: ${index * 60}ms;`}
+      >
+        <a class="post-title" href={`/blog/${post.id}/`}>
+          {post.data.title}
+        </a>
+        <div class="post-meta">
+          <span>{post.data.pubDate.toLocaleDateString("en-US")}</span>
+          <span>Author: {post.data.author}</span>
+          <span>Group: {post.data.group}</span>
+        </div>
+        <div class="post-tags">
+          {post.data.tags.map((tag) => (
+            <span class="pill">#{tag}</span>
+          ))}
         </div>
       </li>
     ))}
   </ul>
+
+  <p class="empty-state card" id="empty-state" hidden>
+    未找到符合条件的文章。No posts match the selected filters.
+  </p>
 </BaseLayout>
 
-<style>
-  p {
-    color: #c7c7c7;
+<script is:inline>
+  const authorSelect = document.querySelector("#filter-author");
+  const tagSelect = document.querySelector("#filter-tag");
+  const groupSelect = document.querySelector("#filter-group");
+  const postItems = Array.from(document.querySelectorAll("[data-post-item]"));
+  const resultCount = document.querySelector("#result-count");
+  const emptyState = document.querySelector("#empty-state");
+
+  function applyFilters() {
+    const authorValue = authorSelect?.value ?? "all";
+    const tagValue = tagSelect?.value ?? "all";
+    const groupValue = groupSelect?.value ?? "all";
+
+    let visibleCount = 0;
+
+    postItems.forEach((item) => {
+      const itemAuthor = item.getAttribute("data-author");
+      const itemGroup = item.getAttribute("data-group");
+      const itemTags = (item.getAttribute("data-tags") ?? "").split(",");
+
+      const isAuthorMatch = authorValue === "all" || itemAuthor === authorValue;
+      const isGroupMatch = groupValue === "all" || itemGroup === groupValue;
+      const isTagMatch = tagValue === "all" || itemTags.includes(tagValue);
+
+      const isVisible = isAuthorMatch && isGroupMatch && isTagMatch;
+      item.hidden = !isVisible;
+
+      if (isVisible) visibleCount += 1;
+    });
+
+    if (resultCount) resultCount.textContent = String(visibleCount);
+    if (emptyState) emptyState.hidden = visibleCount > 0;
   }
 
-  ul {
+  [authorSelect, tagSelect, groupSelect].forEach((control) =>
+    control?.addEventListener("change", applyFilters)
+  );
+
+  applyFilters();
+</script>
+
+<style>
+  h2 {
+    margin: 0 0 14px;
+    font-size: 1.24rem;
+  }
+
+  .hero {
+    margin-bottom: 16px;
+  }
+
+  .eyebrow {
+    margin: 0 0 8px;
+    color: var(--color-accent);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.08;
+  }
+
+  .hero-text {
+    margin: 14px 0 0;
+    color: var(--color-text-muted);
+    max-width: 70ch;
+  }
+
+  .links-section,
+  .contact-section,
+  .filters {
+    margin-bottom: 16px;
+  }
+
+  .logo-links {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .logo-links a {
+    min-height: 48px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .logo-links a:hover {
+    transform: translateY(-1px);
+    border-color: var(--color-accent);
+  }
+
+  .contact-section ul {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .contact-section li {
+    line-height: 1.6;
+  }
+
+  .contact-section a {
+    color: var(--color-link);
+  }
+
+  .wechat-id {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .filters-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  label span {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+    color: var(--color-text-muted);
+  }
+
+  select {
+    width: 100%;
+    min-height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-soft);
+    color: var(--color-text);
+    padding: 0 12px;
+  }
+
+  .result-count {
+    margin: 14px 0 0;
+    color: var(--color-text-muted);
+  }
+
+  .post-list {
     list-style: none;
     padding: 0;
-    margin-top: 32px;
+    margin: 0;
+    display: grid;
+    gap: 12px;
   }
 
-  li {
-    padding: 20px 0;
-    border-bottom: 1px solid #27272a;
+  .post-item {
+    animation: riseIn 0.45s ease forwards;
+    animation-delay: var(--delay);
+    opacity: 0;
   }
 
-  a {
-    color: #f5f5f5;
-    font-size: 22px;
+  .post-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--color-text);
   }
 
-  .meta {
+  .post-title:hover {
+    color: var(--color-accent);
+  }
+
+  .post-meta {
     margin-top: 8px;
-    color: #a1a1aa;
-    font-size: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    font-size: 0.88rem;
+    color: var(--color-text-muted);
+  }
+
+  .post-tags {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    background: var(--color-surface-soft);
+  }
+
+  .empty-state {
+    margin-top: 14px;
+    color: var(--color-text-muted);
+  }
+
+  @media (min-width: 760px) {
+    .logo-links {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filters-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @keyframes riseIn {
+    from {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 </style>

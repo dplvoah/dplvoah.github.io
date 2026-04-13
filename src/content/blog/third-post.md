@@ -3,6 +3,8 @@ title: "Third Post"
 description: "The third post on my blog. Test it again."
 pubDate: "2026-04-11"
 author: "dplvoah"
+tags: ["workflow", "retrospective", "plan"]
+group: "phase-2"
 discussionId: "D_kwDOR8zCy84AlnJ9"
 ---
 
