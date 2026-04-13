@@ -1,23 +1,57 @@
-﻿---
+---
 import "../styles/site.css";
 
 interface Props {
   title: string;
+  description?: string;
   lang?: string;
 }
 
-const { title, lang = "en" } = Astro.props;
+const { title, description = "Personal blog built with Astro", lang = "en" } = Astro.props;
+const pathname = Astro.url.pathname;
 ---
 
 <html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
     <title>{title}</title>
   </head>
   <body>
-    <main class="container">
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/">dplvoah</a>
+        <nav class="site-nav" aria-label="Main menu">
+          <a class={pathname === "/" ? "nav-link active" : "nav-link"} href="/">Home</a>
+          <a class={pathname.startsWith("/blog/") ? "nav-link active" : "nav-link"} href="/#posts">
+            Posts
+          </a>
+          <a class="nav-link" href="https://github.com/dplvoah" target="_blank" rel="noreferrer noopener">
+            GitHub
+          </a>
+          <a
+            class="nav-link"
+            href="https://github.com/dplvoah/dplvoah.github.io"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Repo
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="content" class="shell page">
       <slot />
     </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-inner">
+        <p>Built with Astro. Styled in an antfu-inspired minimalist way.</p>
+      </div>
+    </footer>
   </body>
 </html>

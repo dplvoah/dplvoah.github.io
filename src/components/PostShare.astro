@@ -12,14 +12,11 @@ const encodedDescription = encodeURIComponent(description);
 ---
 
 <section class="share-section card">
-  <h2>分享文章 / Share This Post</h2>
-  <p>复制链接到微信，或一键分享到其他平台。</p>
-  <p>Copy the link for WeChat or share with one click on other platforms.</p>
+  <h2>Share This Post</h2>
+  <p>Copy the link for WeChat or share to social platforms directly.</p>
 
   <div class="share-actions">
-    <button type="button" class="share-action copy-action" data-copy-url={url}>
-      WeChat
-    </button>
+    <button type="button" class="share-action copy-action" data-copy-url={url}>WeChat</button>
     <a
       class="share-action"
       href={`https://connect.qq.com/widget/shareqq/index.html?url=${encodedUrl}&title=${encodedTitle}&summary=${encodedDescription}`}
@@ -77,15 +74,9 @@ const encodedDescription = encodeURIComponent(description);
 
       try {
         await copyToClipboard(copyUrl);
-        if (feedback) {
-          feedback.textContent =
-            "链接已复制，可直接粘贴到微信。Link copied for WeChat.";
-        }
+        if (feedback) feedback.textContent = "Link copied. You can paste it in WeChat.";
       } catch {
-        if (feedback) {
-          feedback.textContent =
-            "复制失败，请手动复制当前页面链接。Copy failed. Please copy the URL manually.";
-        }
+        if (feedback) feedback.textContent = "Copy failed. Please copy the URL manually.";
       }
     });
   });

@@ -11,49 +11,49 @@ const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort();
 const groups = [...new Set(posts.map((post) => post.data.group))].sort();
 ---
 
-<BaseLayout title="dplvoah blog">
-  <section class="hero card">
-    <p class="eyebrow">dplvoah blog</p>
-    <h1>简洁、持续、可对话的个人博客 / Minimal and Conversational Blog</h1>
-    <p class="hero-text">
-      这里记录持续思考，也保留公开讨论。
-      This space is built for long-term thinking and open discussion.
+<BaseLayout title="dplvoah blog" description="Minimal blog with discussion workflow and AI collaboration.">
+  <section class="intro">
+    <p class="mono">/blog</p>
+    <h1>Thoughts, experiments, and open discussion.</h1>
+    <p class="lead">
+      This blog keeps the writing minimal and the interaction practical. Posts, comments, and
+      replies are all connected with GitHub Discussions.
     </p>
   </section>
 
-  <section class="links-section card">
-    <h2>Logo Links</h2>
-    <div class="logo-links">
-      <a href="https://github.com/dplvoah" target="_blank" rel="noreferrer noopener">
-        GitHub Profile
-      </a>
-      <a
-        href="https://github.com/dplvoah/dplvoah.github.io"
-        target="_blank"
-        rel="noreferrer noopener"
-      >
-        Blog Repo
-      </a>
-    </div>
+  <section class="meta-grid">
+    <section class="card block">
+      <h2>Logo Links</h2>
+      <div class="quick-links">
+        <a href="https://github.com/dplvoah" target="_blank" rel="noreferrer noopener">GitHub Profile</a>
+        <a
+          href="https://github.com/dplvoah/dplvoah.github.io"
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          Blog Repository
+        </a>
+      </div>
+    </section>
+
+    <section class="card block">
+      <h2>Contact</h2>
+      <ul class="contact-list">
+        <li>
+          Email 1:
+          <a href="mailto:imlevv@outlook.com">imlevv@outlook.com</a>
+        </li>
+        <li>
+          Email 2:
+          <a href="mailto:dplvoah@gmail.com">dplvoah@gmail.com</a>
+        </li>
+        <li>WeChat ID: <span class="mono soft-strong">hellolevv</span></li>
+      </ul>
+    </section>
   </section>
 
-  <section class="contact-section card">
-    <h2>联系方式 / Contact</h2>
-    <ul>
-      <li>
-        Email 1:
-        <a href="mailto:imlevv@outlook.com">imlevv@outlook.com</a>
-      </li>
-      <li>
-        Email 2:
-        <a href="mailto:dplvoah@gmail.com">dplvoah@gmail.com</a>
-      </li>
-      <li>WeChat ID: <span class="wechat-id">hellolevv</span></li>
-    </ul>
-  </section>
-
-  <section class="filters card">
-    <h2>筛选文章 / Filter Posts</h2>
+  <section class="card filters">
+    <h2>Filter Posts</h2>
     <div class="filters-grid">
       <label>
         <span>Author</span>
@@ -83,40 +83,40 @@ const groups = [...new Set(posts.map((post) => post.data.group))].sort();
         </select>
       </label>
     </div>
-    <p class="result-count">
-      匹配文章 / Matched posts: <strong id="result-count">{posts.length}</strong>
+    <p class="result-line">
+      Matched posts: <strong id="result-count">{posts.length}</strong>
     </p>
   </section>
 
-  <ul class="post-list">
-    {posts.map((post, index) => (
-      <li
-        class="card post-item"
-        data-post-item
-        data-author={post.data.author}
-        data-tags={post.data.tags.join(",")}
-        data-group={post.data.group}
-        style={`--delay: ${index * 60}ms;`}
-      >
-        <a class="post-title" href={`/blog/${post.id}/`}>
-          {post.data.title}
-        </a>
-        <div class="post-meta">
-          <span>{post.data.pubDate.toLocaleDateString("en-US")}</span>
-          <span>Author: {post.data.author}</span>
-          <span>Group: {post.data.group}</span>
-        </div>
-        <div class="post-tags">
-          {post.data.tags.map((tag) => (
-            <span class="pill">#{tag}</span>
-          ))}
-        </div>
-      </li>
-    ))}
-  </ul>
+  <section id="posts">
+    <ul class="post-list">
+      {posts.map((post) => (
+        <li
+          class="post-item"
+          data-post-item
+          data-author={post.data.author}
+          data-tags={post.data.tags.join(",")}
+          data-group={post.data.group}
+        >
+          <a class="post-title" href={`/blog/${post.id}/`}>{post.data.title}</a>
+          <p class="post-excerpt">{post.data.description ?? "No excerpt provided."}</p>
+          <div class="post-meta">
+            <span>{post.data.pubDate.toLocaleDateString("en-US")}</span>
+            <span>Author: {post.data.author}</span>
+            <span>Group: {post.data.group}</span>
+          </div>
+          <div class="tag-row">
+            {post.data.tags.map((tag) => (
+              <span class="tag">#{tag}</span>
+            ))}
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
 
-  <p class="empty-state card" id="empty-state" hidden>
-    未找到符合条件的文章。No posts match the selected filters.
+  <p class="card empty-state" id="empty-state" hidden>
+    No posts match the selected filters.
   </p>
 </BaseLayout>
 
@@ -132,21 +132,18 @@ const groups = [...new Set(posts.map((post) => post.data.group))].sort();
     const authorValue = authorSelect?.value ?? "all";
     const tagValue = tagSelect?.value ?? "all";
     const groupValue = groupSelect?.value ?? "all";
-
     let visibleCount = 0;
 
     postItems.forEach((item) => {
       const itemAuthor = item.getAttribute("data-author");
       const itemGroup = item.getAttribute("data-group");
       const itemTags = (item.getAttribute("data-tags") ?? "").split(",");
+      const isVisible =
+        (authorValue === "all" || itemAuthor === authorValue) &&
+        (groupValue === "all" || itemGroup === groupValue) &&
+        (tagValue === "all" || itemTags.includes(tagValue));
 
-      const isAuthorMatch = authorValue === "all" || itemAuthor === authorValue;
-      const isGroupMatch = groupValue === "all" || itemGroup === groupValue;
-      const isTagMatch = tagValue === "all" || itemTags.includes(tagValue);
-
-      const isVisible = isAuthorMatch && isGroupMatch && isTagMatch;
       item.hidden = !isVisible;
-
       if (isVisible) visibleCount += 1;
     });
 
@@ -162,189 +159,182 @@ const groups = [...new Set(posts.map((post) => post.data.group))].sort();
 </script>
 
 <style>
-  h2 {
-    margin: 0 0 14px;
-    font-size: 1.24rem;
+  .intro {
+    margin-bottom: 28px;
   }
 
-  .hero {
-    margin-bottom: 16px;
-  }
-
-  .eyebrow {
-    margin: 0 0 8px;
-    color: var(--color-accent);
-    font-size: 0.9rem;
+  .mono {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 0.84rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
+    font-family: "DM Mono", "Cascadia Mono", monospace;
   }
 
   h1 {
+    margin: 10px 0 10px;
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    letter-spacing: -0.02em;
+  }
+
+  .lead {
     margin: 0;
-    font-size: clamp(2rem, 5vw, 3rem);
-    line-height: 1.08;
+    max-width: 66ch;
+    color: var(--text-soft);
   }
 
-  .hero-text {
-    margin: 14px 0 0;
-    color: var(--color-text-muted);
-    max-width: 70ch;
-  }
-
-  .links-section,
-  .contact-section,
-  .filters {
-    margin-bottom: 16px;
-  }
-
-  .logo-links {
+  .meta-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
 
-  .logo-links a {
-    min-height: 48px;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    background: var(--color-surface-soft);
+  .block h2 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    letter-spacing: 0.01em;
+  }
+
+  .quick-links {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    text-decoration: none;
-    transition: transform 0.2s ease, border-color 0.2s ease;
-  }
-
-  .logo-links a:hover {
-    transform: translateY(-1px);
-    border-color: var(--color-accent);
-  }
-
-  .contact-section ul {
-    margin: 0;
-    padding-left: 18px;
-    display: grid;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
-  .contact-section li {
-    line-height: 1.6;
+  .quick-links a {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 11px;
+    text-decoration: none;
+    font-size: 0.88rem;
   }
 
-  .contact-section a {
-    color: var(--color-link);
+  .contact-list {
+    margin: 0;
+    padding-left: 17px;
+    display: grid;
+    gap: 5px;
   }
 
-  .wechat-id {
-    font-weight: 700;
-    letter-spacing: 0.02em;
+  .contact-list li {
+    color: var(--text-soft);
+    font-size: 0.92rem;
+  }
+
+  .soft-strong {
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+
+  .filters {
+    margin-bottom: 12px;
+  }
+
+  .filters h2 {
+    margin: 0 0 10px;
+    font-size: 1rem;
   }
 
   .filters-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
 
   label span {
     display: block;
+    font-size: 0.84rem;
     margin-bottom: 6px;
-    font-size: 0.88rem;
-    color: var(--color-text-muted);
+    color: var(--text-soft);
   }
 
   select {
     width: 100%;
-    min-height: 42px;
+    min-height: 36px;
     border-radius: 10px;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface-soft);
-    color: var(--color-text);
-    padding: 0 12px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    padding: 0 10px;
+    font: inherit;
+    font-size: 0.9rem;
   }
 
-  .result-count {
-    margin: 14px 0 0;
-    color: var(--color-text-muted);
+  .result-line {
+    margin: 10px 0 0;
+    font-size: 0.88rem;
+    color: var(--text-soft);
   }
 
   .post-list {
-    list-style: none;
-    padding: 0;
     margin: 0;
-    display: grid;
-    gap: 12px;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
   }
 
   .post-item {
-    animation: riseIn 0.45s ease forwards;
-    animation-delay: var(--delay);
-    opacity: 0;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
   }
 
   .post-title {
-    font-size: 1.2rem;
-    font-weight: 700;
+    display: inline-block;
+    color: var(--text);
     text-decoration: none;
-    color: var(--color-text);
+    font-size: 1.1rem;
+    font-weight: 600;
   }
 
   .post-title:hover {
-    color: var(--color-accent);
+    text-decoration: underline;
+  }
+
+  .post-excerpt {
+    margin: 8px 0 0;
+    color: var(--text-soft);
+    font-size: 0.94rem;
   }
 
   .post-meta {
     margin-top: 8px;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 12px;
-    font-size: 0.88rem;
-    color: var(--color-text-muted);
+    gap: 6px 12px;
+    font-size: 0.82rem;
+    color: var(--text-soft);
   }
 
-  .post-tags {
-    margin-top: 10px;
+  .tag-row {
+    margin-top: 8px;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--color-border);
+  .tag {
+    border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    background: var(--color-surface-soft);
+    padding: 2px 9px;
+    font-size: 0.76rem;
+    color: var(--text-soft);
   }
 
   .empty-state {
-    margin-top: 14px;
-    color: var(--color-text-muted);
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: var(--text-soft);
   }
 
-  @media (min-width: 760px) {
-    .logo-links {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+  @media (min-width: 840px) {
+    .meta-grid {
+      grid-template-columns: 1.1fr 1fr;
     }
 
     .filters-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
-  @keyframes riseIn {
-    from {
-      transform: translateY(8px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
     }
   }
 </style>

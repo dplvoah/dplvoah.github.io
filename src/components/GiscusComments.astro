@@ -19,14 +19,9 @@ const discussionsHomeUrl = `https://github.com/${repo}/discussions`;
       target="_blank"
       rel="noreferrer noopener"
     >
-      打开当前讨论串 / Open Current Thread
+      Open Current Thread
     </a>
-    <a
-      class="discussion-link"
-      href={discussionsHomeUrl}
-      target="_blank"
-      rel="noreferrer noopener"
-    >
+    <a class="discussion-link" href={discussionsHomeUrl} target="_blank" rel="noreferrer noopener">
       GitHub Discussions
     </a>
   </div>
@@ -43,7 +38,7 @@ const discussionsHomeUrl = `https://github.com/${repo}/discussions`;
     data-emit-metadata="1"
     data-input-position="bottom"
     data-theme="preferred_color_scheme"
-    data-lang="zh-CN"
+    data-lang="en"
     crossorigin="anonymous"
     async
   ></script>
@@ -99,27 +94,22 @@ const discussionsHomeUrl = `https://github.com/${repo}/discussions`;
   .discussion-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 14px;
   }
 
   .discussion-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--line);
     border-radius: 999px;
-    min-height: 40px;
-    padding: 0 14px;
-    color: var(--color-text);
+    padding: 6px 12px;
     text-decoration: none;
-    background: var(--color-surface-soft);
-    transition: transform 0.18s ease, border-color 0.18s ease;
+    font-size: 0.85rem;
+    color: var(--text-soft);
   }
 
   .discussion-link:hover {
-    transform: translateY(-1px);
-    border-color: var(--color-accent);
+    color: var(--text);
+    border-color: var(--text);
   }
 
   .is-hidden {

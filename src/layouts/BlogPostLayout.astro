@@ -23,24 +23,23 @@ const site = Astro.site ?? new URL("https://dplvoah.github.io");
 const articleUrl = new URL(`/blog/${slug}/`, site).toString();
 ---
 
-<BaseLayout title={frontmatter.title}>
+<BaseLayout title={frontmatter.title} description={frontmatter.description}>
   <p class="back-link">
-    <a href="/">← 回到首页 / Back to Home</a>
+    <a href="/">Back to home</a>
   </p>
 
   <header class="post-header">
+    <p class="mono">/blog/{slug}</p>
     <h1>{frontmatter.title}</h1>
-    {frontmatter.description && <p class="post-description">{frontmatter.description}</p>}
-
-    <div class="post-meta">
+    {frontmatter.description && <p class="description">{frontmatter.description}</p>}
+    <div class="meta">
       <span>{frontmatter.pubDate && new Date(frontmatter.pubDate).toLocaleDateString("en-US")}</span>
       <span>Author: {frontmatter.author}</span>
       <span>Group: {frontmatter.group}</span>
     </div>
-
-    <div class="post-tags">
+    <div class="tag-row">
       {frontmatter.tags.map((tag) => (
-        <span class="pill">#{tag}</span>
+        <span class="tag">#{tag}</span>
       ))}
     </div>
   </header>
@@ -49,103 +48,91 @@ const articleUrl = new URL(`/blog/${slug}/`, site).toString();
     <slot />
   </article>
 
-  <PostShare
-    title={frontmatter.title}
-    description={frontmatter.description}
-    url={articleUrl}
-  />
+  <PostShare title={frontmatter.title} description={frontmatter.description} url={articleUrl} />
 
-  <div class="comments-wrap card">
-    <div class="comments-intro">
-      <h2>评论 / Discussion</h2>
-      <p>在下方直接回复；复杂线程可打开 GitHub Discussions 继续。</p>
-      <p>Reply below, or continue complex threads in GitHub Discussions.</p>
-    </div>
-
+  <section class="card comments-card">
+    <h2>Discussion</h2>
+    <p class="comment-note">
+      You can reply directly below. For deeper threaded responses, open the GitHub discussion.
+    </p>
     <GiscusComments />
-  </div>
+  </section>
 </BaseLayout>
 
 <style>
   .back-link {
     margin: 0 0 20px;
+    font-size: 0.9rem;
   }
 
-  .back-link a {
-    color: var(--color-accent);
-    font-weight: 600;
+  .mono {
+    margin: 0;
+    color: var(--text-soft);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    font-family: "DM Mono", "Cascadia Mono", monospace;
   }
 
   .post-header {
-    margin-bottom: 22px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
   }
 
   h1 {
-    margin: 0 0 12px;
-    line-height: 1.12;
-    font-size: clamp(2rem, 4vw, 2.8rem);
+    margin: 10px 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: -0.02em;
   }
 
-  .post-description {
-    margin: 0 0 14px;
-    color: var(--color-text-muted);
-    font-size: 1rem;
+  .description {
+    margin: 0;
+    color: var(--text-soft);
   }
 
-  .post-meta {
+  .meta {
+    margin-top: 10px;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 14px;
-    font-size: 0.92rem;
-    color: var(--color-text-muted);
+    gap: 6px 12px;
+    color: var(--text-soft);
+    font-size: 0.86rem;
   }
 
-  .post-tags {
-    margin-top: 14px;
+  .tag-row {
+    margin-top: 10px;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 7px;
   }
 
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--color-border);
+  .tag {
+    border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 0.82rem;
-    color: var(--color-text-muted);
-    background: var(--color-surface-soft);
+    font-size: 0.77rem;
+    color: var(--text-soft);
+    padding: 2px 9px;
   }
 
   .post-article {
-    font-size: 1.06rem;
-    line-height: 1.85;
-    margin-bottom: 34px;
+    font-size: 1.03rem;
+    line-height: 1.8;
+    margin-bottom: 28px;
   }
 
-  .comments-wrap {
-    margin-top: 24px;
-    padding: 18px;
+  .comments-card {
+    margin-top: 20px;
   }
 
-  .comments-intro {
-    margin-bottom: 18px;
+  .comments-card h2 {
+    margin: 0 0 6px;
+    font-size: 1.02rem;
   }
 
-  .comments-intro h2 {
-    margin: 0 0 10px;
-    font-size: 1.2rem;
-  }
-
-  .comments-intro p {
-    margin: 4px 0;
-    color: var(--color-text-muted);
-  }
-
-  @media (min-width: 900px) {
-    .comments-wrap {
-      padding: 26px;
-    }
+  .comment-note {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    color: var(--text-soft);
   }
 </style>
