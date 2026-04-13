@@ -33,6 +33,10 @@ class ParsedPostSnapshot:
     title: str
     description: str
     author: str
+    pub_date: str
+    group: str
+    tags: tuple[str, ...]
+    draft: bool
     body: str
 
 
@@ -79,6 +83,15 @@ def parse_markdown_snapshot(raw_text: str, source: str) -> ParsedPostSnapshot:
     title = str(frontmatter.get("title", "")).strip()
     description = str(frontmatter.get("description", "")).strip()
     author = str(frontmatter.get("author", "")).strip()
+    pub_date = str(frontmatter.get("pubDate", frontmatter.get("date", ""))).strip()
+    group = str(frontmatter.get("group", "")).strip()
+    draft = bool(frontmatter.get("draft", False))
+    raw_tags = frontmatter.get("tags", [])
+    tags: tuple[str, ...]
+    if isinstance(raw_tags, list):
+        tags = tuple(str(item).strip() for item in raw_tags if str(item).strip())
+    else:
+        tags = tuple()
     body = body_text.strip()
 
     if not title:
@@ -94,6 +107,10 @@ def parse_markdown_snapshot(raw_text: str, source: str) -> ParsedPostSnapshot:
         title=title,
         description=description,
         author=author,
+        pub_date=pub_date,
+        group=group,
+        tags=tags,
+        draft=draft,
         body=body,
     )
 
@@ -114,6 +131,8 @@ def run_git_text(args: list[str]) -> tuple[int, str]:
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     return proc.returncode, proc.stdout
 
@@ -224,6 +243,18 @@ def is_significant_change(
     )
     if title_changed or description_changed:
         return True, "title_or_description_changed"
+
+    if normalize_text(previous.pub_date) != normalize_text(current.pub_date):
+        return True, "pub_date_changed"
+
+    if normalize_text(previous.group) != normalize_text(current.group):
+        return True, "group_changed"
+
+    if previous.tags != current.tags:
+        return True, "tags_changed"
+
+    if previous.draft != current.draft:
+        return True, "draft_flag_changed"
 
     prev_body = normalize_text(previous.body)
     curr_body = normalize_text(current.body)
