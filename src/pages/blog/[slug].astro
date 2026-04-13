@@ -6,15 +6,20 @@ export async function getStaticPaths() {
   const posts = await getCollection("blog");
 
   return posts.map((post) => ({
-    params: { slug: post.id },
-    props: { post }
+    params: {
+      slug: (/\/([^/]+)\.md$/i.exec(post.filePath ?? "")?.[1] ?? post.id),
+    },
+    props: {
+      post,
+      routeSlug: (/\/([^/]+)\.md$/i.exec(post.filePath ?? "")?.[1] ?? post.id),
+    }
   }));
 }
 
-const { post } = Astro.props;
+const { post, routeSlug } = Astro.props;
 const { Content } = await render(post);
 ---
 
-<BlogPostLayout frontmatter={post.data} slug={post.id}>
+<BlogPostLayout frontmatter={post.data} slug={routeSlug}>
   <Content />
 </BlogPostLayout>

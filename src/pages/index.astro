@@ -9,6 +9,12 @@ const posts = (await getCollection("blog")).sort(
 const authors = [...new Set(posts.map((post) => post.data.author))].sort();
 const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort();
 const groups = [...new Set(posts.map((post) => post.data.group))].sort();
+
+function resolveRouteSlug(post: { id: string; filePath?: string }) {
+  const filePath = post.filePath ?? "";
+  const match = /\/([^/]+)\.md$/i.exec(filePath);
+  return match?.[1] ?? post.id;
+}
 ---
 
 <BaseLayout title="dplvoah blog" description="Minimal blog with discussion workflow and AI collaboration.">
@@ -91,6 +97,8 @@ const groups = [...new Set(posts.map((post) => post.data.group))].sort();
   <section id="posts">
     <ul class="post-list">
       {posts.map((post) => (
+        // Route slug must stay consistent with Discussion canonical pathname key.
+        // Using file stem preserves dots (e.g. v1.0-summary) that Astro post.id normalizes.
         <li
           class="post-item"
           data-post-item
@@ -98,7 +106,7 @@ const groups = [...new Set(posts.map((post) => post.data.group))].sort();
           data-tags={post.data.tags.join(",")}
           data-group={post.data.group}
         >
-          <a class="post-title" href={`/blog/${post.id}/`}>{post.data.title}</a>
+          <a class="post-title" href={`/blog/${resolveRouteSlug(post)}/`}>{post.data.title}</a>
           <p class="post-excerpt">{post.data.description ?? "No excerpt provided."}</p>
           <div class="post-meta">
             <span>{post.data.pubDate.toLocaleDateString("en-US")}</span>
