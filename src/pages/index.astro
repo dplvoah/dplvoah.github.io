@@ -1,49 +1,48 @@
 ---
 import { getCollection } from "astro:content";
-import BaseLayout from "../layouts/BaseLayout.astro";
+import { HomeLayout } from "charm:layouts";
 
-const posts = (await getCollection("blog")).sort(
-  (a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime()
-);
+const posts = (await getCollection(
+  "posts",
+  ({ data }) =>
+    (!data.hidden || !import.meta.env.PROD) &&
+    (import.meta.env.PROD ? data.draft !== true : true),
+)).sort((a, b) => b.data.published.getTime() - a.data.published.getTime());
 
 const authors = [...new Set(posts.map((post) => post.data.author))].sort();
-const tags = [...new Set(posts.flatMap((post) => post.data.tags))].sort();
-const groups = [...new Set(posts.map((post) => post.data.group))].sort();
+const tags = [...new Set(posts.flatMap((post) => post.data.tags ?? []))].sort();
+const groups = [...new Set(posts.map((post) => post.data.group ?? post.data.category))].sort();
 
 function resolveRouteSlug(post: { id: string; filePath?: string }) {
   const filePath = post.filePath ?? "";
-  const match = /\/([^/]+)\.md$/i.exec(filePath);
+  const match = /\/([^/]+)\.mdx?$/i.exec(filePath);
   return match?.[1] ?? post.id;
 }
 ---
 
-<BaseLayout title="dplvoah blog" description="Minimal blog with discussion workflow and AI collaboration.">
+<HomeLayout useH1 meta={{ title: "dplvoah blog", description: "Thoughts, experiments, and open discussion." }}>
   <section class="intro">
     <p class="mono">/blog</p>
-    <h1>Thoughts, experiments, and open discussion.</h1>
+    <h2>Thoughts, experiments, and open discussion.</h2>
     <p class="lead">
-      This blog keeps the writing minimal and the interaction practical. Posts, comments, and
-      replies are all connected with GitHub Discussions.
+      This blog keeps writing minimal and interaction practical. Posts, comments, and follow-up replies are all
+      connected through GitHub Discussions.
     </p>
   </section>
 
   <section class="meta-grid">
-    <section class="card block">
-      <h2>Logo Links</h2>
+    <section class="panel">
+      <h3>Links</h3>
       <div class="quick-links">
         <a href="https://github.com/dplvoah" target="_blank" rel="noreferrer noopener">GitHub Profile</a>
-        <a
-          href="https://github.com/dplvoah/dplvoah.github.io"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
+        <a href="https://github.com/dplvoah/dplvoah.github.io" target="_blank" rel="noreferrer noopener">
           Blog Repository
         </a>
       </div>
     </section>
 
-    <section class="card block">
-      <h2>Contact</h2>
+    <section class="panel">
+      <h3>Contact</h3>
       <ul class="contact-list">
         <li>
           Email 1:
@@ -53,13 +52,13 @@ function resolveRouteSlug(post: { id: string; filePath?: string }) {
           Email 2:
           <a href="mailto:dplvoah@gmail.com">dplvoah@gmail.com</a>
         </li>
-        <li>WeChat ID: <span class="mono soft-strong">hellolevv</span></li>
+        <li>WeChat ID: <span class="mono">hellolevv</span></li>
       </ul>
     </section>
   </section>
 
-  <section class="card filters">
-    <h2>Filter Posts</h2>
+  <section class="panel filters">
+    <h3>Filter Posts</h3>
     <div class="filters-grid">
       <label>
         <span>Author</span>
@@ -97,36 +96,38 @@ function resolveRouteSlug(post: { id: string; filePath?: string }) {
   <section id="posts">
     <ul class="post-list">
       {posts.map((post) => (
-        // Route slug must stay consistent with Discussion canonical pathname key.
-        // Using file stem preserves dots (e.g. v1.0-summary) that Astro post.id normalizes.
         <li
           class="post-item"
           data-post-item
           data-author={post.data.author}
-          data-tags={post.data.tags.join(",")}
-          data-group={post.data.group}
+          data-tags={(post.data.tags ?? []).join(",")}
+          data-group={post.data.group ?? post.data.category}
         >
-          <a class="post-title" href={`/blog/${resolveRouteSlug(post)}/`}>{post.data.title}</a>
+          <a class="post-title link-animate" href={`/blog/${resolveRouteSlug(post)}/`}>
+            {post.data.title}
+          </a>
           <p class="post-excerpt">{post.data.description ?? "No excerpt provided."}</p>
           <div class="post-meta">
-            <span>{post.data.pubDate.toLocaleDateString("en-US")}</span>
+            <span>{post.data.published.toLocaleDateString("en-US")}</span>
             <span>Author: {post.data.author}</span>
-            <span>Group: {post.data.group}</span>
+            <span>Group: {post.data.group ?? post.data.category}</span>
           </div>
-          <div class="tag-row">
-            {post.data.tags.map((tag) => (
-              <span class="tag">#{tag}</span>
-            ))}
-          </div>
+          {(post.data.tags ?? []).length > 0 && (
+            <div class="tag-row">
+              {(post.data.tags ?? []).map((tag) => (
+                <span class="tag">#{tag}</span>
+              ))}
+            </div>
+          )}
         </li>
       ))}
     </ul>
   </section>
 
-  <p class="card empty-state" id="empty-state" hidden>
+  <p class="panel empty-state" id="empty-state" hidden>
     No posts match the selected filters.
   </p>
-</BaseLayout>
+</HomeLayout>
 
 <script is:inline>
   const authorSelect = document.querySelector("#filter-author");
@@ -160,7 +161,7 @@ function resolveRouteSlug(post: { id: string; filePath?: string }) {
   }
 
   [authorSelect, tagSelect, groupSelect].forEach((control) =>
-    control?.addEventListener("change", applyFilters)
+    control?.addEventListener("change", applyFilters),
   );
 
   applyFilters();
@@ -168,175 +169,144 @@ function resolveRouteSlug(post: { id: string; filePath?: string }) {
 
 <style>
   .intro {
-    margin-bottom: 28px;
+    margin-bottom: 1.6rem;
   }
 
   .mono {
-    margin: 0;
-    color: var(--text-soft);
-    font-size: 0.84rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-family: "DM Mono", "Cascadia Mono", monospace;
+    opacity: 0.75;
+    letter-spacing: 0.05em;
   }
 
-  h1 {
-    margin: 10px 0 10px;
-    font-size: clamp(2rem, 5vw, 2.9rem);
-    letter-spacing: -0.02em;
+  .intro h2 {
+    margin: 0.2rem 0 0.5rem;
   }
 
   .lead {
-    margin: 0;
-    max-width: 66ch;
-    color: var(--text-soft);
+    max-width: 72ch;
+    opacity: 0.9;
   }
 
   .meta-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 0.8rem;
+    margin-bottom: 0.8rem;
   }
 
-  .block h2 {
-    margin: 0 0 10px;
-    font-size: 1rem;
-    letter-spacing: 0.01em;
+  .panel {
+    border-radius: 0.6rem;
+    padding: 1rem;
+    border: 1px solid var(--charm-contrast-color-2);
+    background: color-mix(in oklab, var(--charm-bg-color) 94%, var(--charm-contrast-color-2));
+  }
+
+  .panel h3 {
+    margin-top: 0;
+    margin-bottom: 0.8rem;
   }
 
   .quick-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 0.6rem;
   }
 
   .quick-links a {
-    border: 1px solid var(--line);
+    border: 1px solid var(--charm-contrast-color-3);
     border-radius: 999px;
-    padding: 6px 11px;
+    padding: 0.32rem 0.75rem;
     text-decoration: none;
-    font-size: 0.88rem;
   }
 
   .contact-list {
     margin: 0;
-    padding-left: 17px;
+    padding-left: 1.2rem;
     display: grid;
-    gap: 5px;
-  }
-
-  .contact-list li {
-    color: var(--text-soft);
-    font-size: 0.92rem;
-  }
-
-  .soft-strong {
-    color: var(--text);
-    letter-spacing: 0.04em;
-  }
-
-  .filters {
-    margin-bottom: 12px;
-  }
-
-  .filters h2 {
-    margin: 0 0 10px;
-    font-size: 1rem;
+    gap: 0.35rem;
   }
 
   .filters-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 0.8rem;
   }
 
   label span {
     display: block;
-    font-size: 0.84rem;
-    margin-bottom: 6px;
-    color: var(--text-soft);
+    margin-bottom: 0.35rem;
+    opacity: 0.85;
+    font-size: 0.92rem;
   }
 
   select {
     width: 100%;
-    min-height: 36px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--text);
-    padding: 0 10px;
+    min-height: 2.2rem;
+    border-radius: 0.45rem;
+    border: 1px solid var(--charm-contrast-color-3);
+    background: var(--charm-bg-color);
+    color: var(--charm-font-color);
+    padding: 0 0.7rem;
     font: inherit;
-    font-size: 0.9rem;
   }
 
   .result-line {
-    margin: 10px 0 0;
-    font-size: 0.88rem;
-    color: var(--text-soft);
+    margin: 0.75rem 0 0;
+    opacity: 0.85;
   }
 
   .post-list {
     margin: 0;
     padding: 0;
     list-style: none;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid var(--charm-contrast-color-2);
   }
 
   .post-item {
-    padding: 18px 0;
-    border-bottom: 1px solid var(--line);
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--charm-contrast-color-2);
   }
 
   .post-title {
     display: inline-block;
-    color: var(--text);
+    font-size: 1.08rem;
     text-decoration: none;
-    font-size: 1.1rem;
-    font-weight: 600;
-  }
-
-  .post-title:hover {
-    text-decoration: underline;
+    margin-bottom: 0.35rem;
   }
 
   .post-excerpt {
-    margin: 8px 0 0;
-    color: var(--text-soft);
-    font-size: 0.94rem;
+    margin: 0.2rem 0 0.5rem;
+    opacity: 0.85;
   }
 
   .post-meta {
-    margin-top: 8px;
     display: flex;
     flex-wrap: wrap;
-    gap: 6px 12px;
-    font-size: 0.82rem;
-    color: var(--text-soft);
+    gap: 0.35rem 0.85rem;
+    font-size: 0.9rem;
+    opacity: 0.8;
   }
 
   .tag-row {
-    margin-top: 8px;
+    margin-top: 0.5rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 0.45rem;
   }
 
   .tag {
-    border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 2px 9px;
-    font-size: 0.76rem;
-    color: var(--text-soft);
+    border: 1px solid var(--charm-contrast-color-3);
+    padding: 0.14rem 0.5rem;
+    font-size: 0.82rem;
+    opacity: 0.85;
   }
 
   .empty-state {
-    margin-top: 12px;
-    font-size: 0.9rem;
-    color: var(--text-soft);
+    margin-top: 0.8rem;
+    opacity: 0.85;
   }
 
-  @media (min-width: 840px) {
+  @media (min-width: 50rem) {
     .meta-grid {
       grid-template-columns: 1.1fr 1fr;
     }

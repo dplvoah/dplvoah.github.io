@@ -1,0 +1,25 @@
+---
+const { postEntry } = Astro.props;
+const author = postEntry?.data?.author;
+const group = postEntry?.data?.group ?? postEntry?.data?.category;
+---
+
+{
+  (author || group) && (
+    <p class="legacy-meta" data-pagefind-ignore>
+      {author && <span>Author: {author}</span>}
+      {group && <span>Group: {group}</span>}
+    </p>
+  )
+}
+
+<style>
+  .legacy-meta {
+    margin: 0.2rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    opacity: 0.82;
+    font-size: 0.92rem;
+  }
+</style>

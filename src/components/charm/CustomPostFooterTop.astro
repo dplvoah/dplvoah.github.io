@@ -1,0 +1,201 @@
+---
+const { postEntry } = Astro.props;
+
+function resolveRouteSlug(post: { id: string; filePath?: string }) {
+  const filePath = post?.filePath ?? "";
+  const match = /\/([^/]+)\.mdx?$/i.exec(filePath);
+  return match?.[1] ?? post?.id ?? "";
+}
+
+const routeSlug = resolveRouteSlug(postEntry);
+const site = Astro.site ?? new URL("https://dplvoah.github.io");
+const articleUrl = new URL(`/blog/${routeSlug}/`, site).toString();
+const title = postEntry?.data?.title ?? "";
+const description = postEntry?.data?.description ?? "";
+const encodedTitle = encodeURIComponent(title);
+const encodedUrl = encodeURIComponent(articleUrl);
+const encodedDescription = encodeURIComponent(description);
+const discussionsHomeUrl = "https://github.com/dplvoah/dplvoah.github.io/discussions";
+---
+
+<section class="legacy-share" data-pagefind-ignore>
+  <h2>Share This Post</h2>
+  <p>Copy the link for WeChat or share to social platforms directly.</p>
+
+  <div class="share-actions">
+    <button type="button" class="share-action copy-action" data-copy-url={articleUrl}>WeChat</button>
+    <a
+      class="share-action"
+      href={`https://connect.qq.com/widget/shareqq/index.html?url=${encodedUrl}&title=${encodedTitle}&summary=${encodedDescription}`}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      QQ
+    </a>
+    <a
+      class="share-action"
+      href={`https://x.com/intent/post?text=${encodedTitle}&url=${encodedUrl}`}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      X
+    </a>
+    <a
+      class="share-action"
+      href={`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      Facebook
+    </a>
+  </div>
+  <p class="copy-feedback" aria-live="polite"></p>
+
+  <div class="discussion-actions">
+    <a
+      class="discussion-link is-hidden"
+      data-thread-link
+      href={discussionsHomeUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      Open Current Thread
+    </a>
+    <a class="discussion-link" href={discussionsHomeUrl} target="_blank" rel="noreferrer noopener">
+      GitHub Discussions
+    </a>
+  </div>
+</section>
+
+<script is:inline>
+  async function copyToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    document.execCommand("copy");
+    textArea.remove();
+  }
+
+  document.querySelectorAll(".legacy-share .copy-action").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const section = button.closest(".legacy-share");
+      const feedback = section?.querySelector(".copy-feedback");
+      const copyUrl = button.getAttribute("data-copy-url") ?? "";
+
+      try {
+        await copyToClipboard(copyUrl);
+        if (feedback) feedback.textContent = "Link copied. You can paste it in WeChat.";
+      } catch {
+        if (feedback) feedback.textContent = "Copy failed. Please copy the URL manually.";
+      }
+    });
+  });
+
+  function findDiscussionUrl(payload, depth = 0) {
+    if (!payload || depth > 8) return null;
+    if (typeof payload === "string") {
+      if (payload.startsWith("https://github.com/") && payload.includes("/discussions/")) return payload;
+      return null;
+    }
+    if (Array.isArray(payload)) {
+      for (const item of payload) {
+        const found = findDiscussionUrl(item, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (typeof payload === "object") {
+      for (const value of Object.values(payload)) {
+        const found = findDiscussionUrl(value, depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  window.addEventListener("message", (event) => {
+    if (event.origin !== "https://giscus.app") return;
+    const threadLink = document.querySelector("[data-thread-link]");
+    if (!threadLink) return;
+    const discussionUrl = findDiscussionUrl(event.data);
+    if (!discussionUrl) return;
+    threadLink.setAttribute("href", discussionUrl);
+    threadLink.classList.remove("is-hidden");
+  });
+</script>
+
+<style>
+  .legacy-share {
+    margin: 1.2rem 0;
+    border: 1px solid var(--charm-contrast-color-2);
+    border-radius: 0.6rem;
+    padding: 1rem;
+    background: color-mix(in oklab, var(--charm-bg-color) 96%, var(--charm-contrast-color-2));
+  }
+
+  .legacy-share h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.02rem;
+  }
+
+  .legacy-share p {
+    margin: 0;
+    opacity: 0.83;
+    font-size: 0.92rem;
+  }
+
+  .share-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .share-action {
+    min-height: 2.1rem;
+    border: 1px solid var(--charm-contrast-color-3);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--charm-font-color);
+    padding: 0 0.8rem;
+    font: inherit;
+    font-size: 0.9rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .copy-feedback {
+    min-height: 1.2em;
+    margin-top: 0.55rem;
+    font-size: 0.85rem;
+    opacity: 0.8;
+  }
+
+  .discussion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+
+  .discussion-link {
+    border: 1px solid var(--charm-contrast-color-3);
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem;
+    text-decoration: none;
+    font-size: 0.86rem;
+    color: var(--charm-font-color);
+  }
+
+  .is-hidden {
+    display: none;
+  }
+</style>

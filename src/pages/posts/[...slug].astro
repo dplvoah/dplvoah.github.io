@@ -1,0 +1,19 @@
+---
+import { getCollection } from "astro:content";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("posts", ({ data }) =>
+    import.meta.env.PROD ? data.draft !== true : true,
+  );
+  return posts.map((entry) => ({
+    params: {
+      slug: (/\/([^/]+)\.mdx?$/i.exec(entry.filePath ?? "")?.[1] ?? entry.id),
+    },
+  }));
+}
+
+return Astro.redirect(
+  `/blog/${Array.isArray(Astro.params.slug) ? Astro.params.slug.join("/") : Astro.params.slug}/`,
+  301,
+);
+---

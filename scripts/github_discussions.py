@@ -504,6 +504,8 @@ def list_discussion_comments(
           comments(first: $pageSize, after: $cursor) {
             nodes {
               id
+              databaseId
+              url
               body
               createdAt
               author {

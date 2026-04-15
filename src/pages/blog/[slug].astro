@@ -1,25 +1,89 @@
 ---
 import { getCollection, render } from "astro:content";
-import BlogPostLayout from "../../layouts/BlogPostLayout.astro";
+import { PostLayout } from "charm:layouts";
+import config from "charm:config";
+
+type FlatHeading = {
+  slug: string;
+  text: string;
+  depth: number;
+};
+
+type NestedHeading = {
+  slug: string;
+  text: string;
+  subheadings?: NestedHeading[];
+  nestedDepth: number;
+  absoluteDepth?: number;
+};
+
+function flat2NestedHeadings(flatHeadings: FlatHeading[]): NestedHeading[] {
+  const result: NestedHeading[] = [];
+  const stack: NestedHeading[] = [];
+
+  for (const heading of flatHeadings) {
+    while (stack.length > 0 && (stack[stack.length - 1].absoluteDepth ?? 0) >= heading.depth) {
+      stack.pop();
+    }
+
+    const nestedDepth = stack.length === 0 ? 1 : stack[stack.length - 1].nestedDepth + 1;
+    const node: NestedHeading = {
+      ...heading,
+      absoluteDepth: heading.depth,
+      subheadings: [],
+      nestedDepth,
+    };
+
+    if (stack.length === 0) {
+      result.push(node);
+    } else {
+      stack[stack.length - 1].subheadings = [...(stack[stack.length - 1].subheadings ?? []), node];
+    }
+
+    stack.push(node);
+  }
+
+  return result;
+}
 
 export async function getStaticPaths() {
-  const posts = await getCollection("blog");
+  const posts = await getCollection("posts", ({ data }) =>
+    import.meta.env.PROD ? data.draft !== true : true,
+  );
 
-  return posts.map((post) => ({
+  return posts.map((entry) => ({
     params: {
-      slug: (/\/([^/]+)\.md$/i.exec(post.filePath ?? "")?.[1] ?? post.id),
+      slug: (/\/([^/]+)\.mdx?$/i.exec(entry.filePath ?? "")?.[1] ?? entry.id),
     },
     props: {
-      post,
-      routeSlug: (/\/([^/]+)\.md$/i.exec(post.filePath ?? "")?.[1] ?? post.id),
-    }
+      entry,
+    },
   }));
 }
 
-const { post, routeSlug } = Astro.props;
-const { Content } = await render(post);
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const anchor = config.markdown?.headingAnchor ?? "#";
+const nestedHeadings = flat2NestedHeadings(
+  headings.map((h) => {
+    const text = h.text.endsWith(anchor) ? h.text.slice(0, -anchor.length) : h.text;
+    return {
+      slug: h.slug,
+      text,
+      depth: h.depth,
+    };
+  }),
+);
 ---
 
-<BlogPostLayout frontmatter={post.data} slug={routeSlug}>
+<PostLayout
+  meta={{
+    title: entry.data.title,
+    description: entry.data.description,
+    image: entry.data.image,
+  }}
+  postEntry={entry}
+  headings={nestedHeadings}
+>
   <Content />
-</BlogPostLayout>
+</PostLayout>
